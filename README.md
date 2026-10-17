@@ -21,7 +21,7 @@ src/views/pao.js  - PAO field monitor
 src/app.js  - Display Views selector, demo controls, app shell
 src/main.js  - Entry point
 css/styles.css  - all styling (white + blue theme, phone/monitor frames, responsive rules)
-index.html      - loads scripts in dependency order
+index.html      - loads scripts in dependency order in files.
 ```
 
 Scripts are classic (non-module) files that share globals, so the load order in index.html matters.
