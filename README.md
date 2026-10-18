@@ -2,13 +2,52 @@
 
 **Modernized Jeepney Passenger Information and Fleet Monitoring System**
 
-A lightweight, zero-build, responsive prototype demonstrating a complete public transit ecosystem for modernized jeepneys in the Philippines. All data is simulated, reactive, and persisted in browser `localStorage` (`waitless-demo-v1`).
+> [!NOTE]
+> **AI-Assisted Build**: This prototype was built and architected through AI-assisted pair-programming using Google DeepMind's Antigravity AI coding assistant. The AI assisted across domain logic engineering, spatial SVG map geometry, reactive state store design, responsive design system styling, and modular codebase restructuring.
+
+---
+
+## What is this Prototype?
+
+**WaitLess** is an interactive, zero-build concept prototype designed for the **Public Utility Vehicle Modernization Program (PUVMP)** in the Philippines. It demonstrates an interconnected public transit ecosystem that bridges the gap between **commuters**, **transport cooperatives**, and **on-ground Passenger Assistance Officers (PAOs)**.
+
+In Philippine public transit, passengers often endure unpredictable waiting times, unknown seat availability, and unannounced route congestion. At the same time, transport cooperatives often lack unified telemetry tools to monitor vehicle operations, and field officers have no digitized way to report localized road bottlenecks.
+
+WaitLess simulates a real-time IoT and telemetry data pipeline connecting three key operational personas:
+
+```
+[Modernized Jeepney GPS] ──(LoRaWAN / Cellular)──► [IoT Gateway & Server] ──► [WaitLess Core Engine]
+                                                                                     │
+                       ┌─────────────────────────────────────────────────────────────┼─────────────────────────────────────────┐
+                       ▼                                                             ▼                                         ▼
+         📱 Commuter Mobile App                                      🖥️ Cooperative Dashboard                    📍 PAO Field Monitor
+   • Traffic-adjusted arrival ETAs                             • Real-time fleet health & dispatch         • Stop congestion & queue meters
+   • Live seat availability (Full/Limited)                     • Passenger demand heatmaps                 • Road condition & incident logs
+   • LTFRB-compliant fare calculator                           • Multi-screen monitor displays             • Instant escalation to HQ
+   • Proximity approaching alerts                              • Dynamic fare matrix settings
+```
+
+### Simulated Telemetry Pipeline
+All data in this demonstration is client-side simulated and persistently saved in the browser's `localStorage` (`waitless-demo-v1`):
+- **GPS Movement**: Vehicles dynamically traverse defined coordinate polylines, turnaround at terminals, and emit status pings.
+- **LoRaWAN Link Simulation**: Users can toggle or sever the simulated wireless telemetry link from demo controls to observe fallback behavior (e.g. stale data detection).
+- **Interactive Scenarios**: Built-in triggers allow simulating vehicle breakdowns, heavy traffic jams, sudden passenger demand surges, and seat capacity shortages.
+
+---
+
+## User Interfaces & Personas
+
+| View | Target User | Key Capabilities |
+| :--- | :--- | :--- |
+| **Commuter App** | Daily Passengers | Animated welcoming onboarding, route search, schematic route map, draggable bottom sheet, trip planner with nearest-stop pin locator, LTFRB fare matrix (regular & discounted), and approaching vehicle notifications. |
+| **Cooperative Dashboard** | Fleet Operators & Dispatchers | Executive KPI tiles (active, at terminal, out of service, stale data), live fleet table, route management, demand heatmap analysis, operational alert acknowledgments, and dual-screen second monitor mode (`#map`). |
+| **PAO Mobile Terminal** | Ground Transit Officers | Handheld field monitoring console, queue density meters, traffic incident tracker, and direct observation submission that escalates alerts to dispatchers. |
 
 ---
 
 ## Quick Start
 
-- **Direct Launch**: Open `index.html` directly in any modern browser (internet connection required for React CDN).
+- **Direct Launch**: Double-click `index.html` directly in any modern web browser (internet connection required for the React CDN).
 - **Local HTTP Server**:
   ```bash
   # Node.js
