@@ -149,3 +149,12 @@ header .tag{font-size:10.5px;letter-spacing:.4px;text-transform:uppercase}
 .dev2 .panel:not(.mon){height:min(640px,calc(100dvh - 230px))}
 .panel .coop.in>:nth-child(2) svg.m{width:100%;max-width:100%;height:clamp(300px,50dvh,440px);min-height:0;display:block}
 .panel .coop.maponly.in>:nth-child(2) svg.m{height:clamp(420px,70dvh,760px)}
+.coop{font-size:12px}.panel .coop.in{gap:10px}
+.coop .c{padding:10px}.coop .c h3{font-size:12.5px;margin-bottom:6px;padding-bottom:4px}
+.coop .kp{gap:6px;grid-template-columns:repeat(auto-fit,minmax(105px,1fr))}.coop .kp div{padding:6px 9px;font-size:11px}.coop .kp b{font-size:18px}
+.coop .mu{font-size:11px}.coop table{font-size:11px}.coop td,.coop th{padding:3px 4px}
+.coop button,.coop select,.coop input,.coop textarea{font-size:11.5px;padding:3px 7px;border-radius:8px}.coop button,.coop select{min-height:28px}
+.coop table select{max-width:112px}.coop input[type=number]{width:52px}.coop .b{font-size:10px;padding:1px 6px}.coop .row{gap:5px}
+.panel .coop.in>:nth-child(2) svg.m{height:clamp(260px,42dvh,360px)}
+.panel .coop.in>:nth-child(5),.panel .coop.in>:nth-child(8){max-height:250px}
+@media(max-width:560px){.coop input,.coop select,.coop textarea{font-size:16px}}
