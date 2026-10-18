@@ -1,25 +1,25 @@
 /**
- * WaitLess Prototype - Schematic SVG Map View
+ * WaitLess Prototype - Modern Schematic SVG Map View
  *
- * Renders an interactive vector map showing:
- * - City grid blocks, landmarks, and arterial corridors
- * - Modernized Jeepney routes and designated pickup points
- * - Active vehicle locations with operational status badges
- * - Heatmaps for passenger demand and road traffic congestion
- * - Commuters waiting at stops and active alert indicators
- * - Interactive commuter pin placement and vehicle inspection tooltip
+ * Renders a state-of-the-art vector transit map featuring:
+ * - Clean city blocks, green park spaces, and water corridors
+ * - Radiant transit routes with traffic-aware glow effects
+ * - Modern vehicle capsule markers with direction indicators and live telemetry beacons
+ * - Heatmaps for passenger density and road traffic slowdowns
+ * - Commuter location pins with animated radar wave pulses
+ * - Modern diagnostic inspection tooltip cards
  */
 
 // District landmarks on schematic map
 const DISTRICT_LABELS = [
-  ['Jaro', 70, 10],
-  ['Mandurriao', 30, 27],
+  ['Jaro Plaza', 70, 10],
+  ['Mandurriao Central', 30, 27],
   ['City Proper', 84, 12],
-  ['SM City', 86, 52],
-  ['Molo', 52, 52],
+  ['SM City Complex', 86, 52],
+  ['Molo Crossing', 52, 52],
   ['Hibao-an', 86, 31],
   ['Calumpang', 12, 60],
-  ['Airport Rd', 50, 31],
+  ['Airport Corridor', 50, 31],
 ];
 
 /**
@@ -46,17 +46,17 @@ function MapView({
   const [pinnedVehicleId, setPinnedVehicleId] = useState(null);
 
   /**
-   * Resolves route traffic color: Green (Light), Yellow (Moderate), Red (Heavy)
+   * Resolves route traffic color: Emerald (Light), Amber (Moderate), Rose (Heavy)
    */
   const getRouteTrafficColor = (routeId) => {
     const routeTraffic = state.traffic
       .filter((t) => t.routeId === routeId)
       .map((t) => t.level);
 
-    if (routeTraffic.includes('Heavy')) return '#dc2626';
+    if (routeTraffic.includes('Heavy')) return '#ef4444';
     if (routeTraffic.includes('Moderate')) return '#f59e0b';
-    if (routeTraffic.length && !routeTraffic.includes('Unknown')) return '#16a34a';
-    return '#2563eb';
+    if (routeTraffic.length && !routeTraffic.includes('Unknown')) return '#10b981';
+    return '#3b82f6';
   };
 
   /**
@@ -89,29 +89,53 @@ function MapView({
       'aria-label': 'Simulated route map with demand heatmap (offline schematic)',
     },
 
-    // 1. Defs: Heatmap radial gradients for High, Moderate, and Low
+    // 1. Defs: Heatmap radial gradients, drop shadows & filter effects
     h(
       'defs',
       null,
+      // Drop Shadow Filter for Tooltip & Markers
+      h(
+        'filter',
+        { id: 'cardShadow', x: '-20%', y: '-20%', width: '140%', height: '140%' },
+        h('feDropShadow', {
+          dx: 0,
+          dy: 2,
+          stdDeviation: 2.5,
+          floodColor: '#0f172a',
+          floodOpacity: 0.15,
+        })
+      ),
+      h(
+        'filter',
+        { id: 'markerShadow', x: '-30%', y: '-30%', width: '160%', height: '160%' },
+        h('feDropShadow', {
+          dx: 0,
+          dy: 1,
+          stdDeviation: 1,
+          floodColor: '#0f172a',
+          floodOpacity: 0.25,
+        })
+      ),
+      // Radial Heatmap Gradients
       [
         ['High', '#ef4444'],
         ['Moderate', '#f59e0b'],
-        ['Low', '#22c55e'],
+        ['Low', '#10b981'],
       ].map(([level, color]) =>
         h(
           'radialGradient',
           { key: level, id: gradientPrefix + level },
-          h('stop', { offset: '0%', stopColor: color, stopOpacity: 0.9 }),
-          h('stop', { offset: '55%', stopColor: color, stopOpacity: 0.4 }),
+          h('stop', { offset: '0%', stopColor: color, stopOpacity: 0.85 }),
+          h('stop', { offset: '50%', stopColor: color, stopOpacity: 0.35 }),
           h('stop', { offset: '100%', stopColor: color, stopOpacity: 0 })
         )
       )
     ),
 
     // 2. Base canvas background
-    h('rect', { x: -500, y: -500, width: 1000, height: 1000, fill: '#ffffff' }),
+    h('rect', { x: -500, y: -500, width: 1000, height: 1000, fill: '#f8fafc' }),
 
-    // 3. City block grid
+    // 3. City blocks grid (soft slate tiles)
     Array.from({ length: 378 }, (_, i) => {
       const col = (i % 21) - 6;
       const row = Math.floor(i / 21) - 6;
@@ -133,24 +157,35 @@ function MapView({
         y,
         width: 9,
         height: 9.5,
-        rx: 1.2,
-        fill: '#eef4fd',
+        rx: 2,
+        fill: '#f1f5f9',
       });
     }),
 
-    // 4. City center plaza landmark
-    h('rect', { x: 60, y: 20, width: 14, height: 9, rx: 2, fill: '#e2edfb' }),
+    // 4. City park/plaza green landmark
+    h('rect', { x: 59, y: 19, width: 16, height: 11, rx: 3, fill: '#ecfdf5' }),
+    h('rect', { x: 60, y: 20, width: 14, height: 9, rx: 2, fill: '#d1fae5' }),
 
-    // 5. River and arterial highway paths
+    // 5. River and arterial water corridors
     h('path', {
       d: 'M-300 78 L0 62 C20 52,35 60,55 50 S85 52,100 40 L400 20',
       fill: 'none',
-      stroke: '#cfe4f7',
-      strokeWidth: 4.5,
+      stroke: '#bae6fd',
+      strokeWidth: 5,
       strokeLinecap: 'round',
     }),
-    h('path', { d: 'M-200 14 L300 54', stroke: '#d6e4f8', strokeWidth: 1.8 }),
-    h('path', { d: 'M-5 -350 L105 420', stroke: '#d6e4f8', strokeWidth: 1.8 }),
+    h('path', {
+      d: 'M-200 14 L300 54',
+      stroke: '#e2e8f0',
+      strokeWidth: 2,
+      strokeLinecap: 'round',
+    }),
+    h('path', {
+      d: 'M-5 -350 L105 420',
+      stroke: '#e2e8f0',
+      strokeWidth: 2,
+      strokeLinecap: 'round',
+    }),
 
     // 6. District landmark labels
     DISTRICT_LABELS.map(([label, x, y]) =>
@@ -160,9 +195,11 @@ function MapView({
           key: label,
           x,
           y,
-          fontSize: 2.1,
+          fontSize: 2.2,
+          fontWeight: 600,
           fill: '#64748b',
           textAnchor: 'middle',
+          letterSpacing: 0.1,
         },
         label
       )
@@ -185,7 +222,11 @@ function MapView({
           r: radius,
           fill: `url(#${gradientPrefix}${hotspot.level})`,
         },
-        h('title', null, `${hotspot.loc}: ${hotspot.level} demand, ${hotspot.count} waiting (simulated)`)
+        h(
+          'title',
+          null,
+          `${hotspot.loc}: ${hotspot.level} demand, ${hotspot.count} waiting (simulated)`
+        )
       );
     }),
 
@@ -208,7 +249,7 @@ function MapView({
         const radiusMap = { Heavy: 8, Moderate: 6, Light: 4.5 };
         const radius = radiusMap[trafficReport.level] || 5;
 
-        // Render multi-point spread along congested stretch
+        // Spread circles along congested stretch
         return [-0.12, 0, 0.12].map((offset) => {
           const sampleProgress = Math.max(0, Math.min(1, centerProgress + offset));
           const coords = getPositionOnRoute(route, sampleProgress);
@@ -223,7 +264,11 @@ function MapView({
               r: radius,
               fill: `url(#${gradientPrefix}${gradientLevel})`,
             },
-            h('title', null, `${trafficReport.road}: ${trafficReport.level} traffic (simulated)`)
+            h(
+              'title',
+              null,
+              `${trafficReport.road}: ${trafficReport.level} traffic (simulated)`
+            )
           );
         });
       }),
@@ -233,24 +278,35 @@ function MapView({
       .filter((route) => route.active)
       .map((route) => {
         const pointsString = route.pts.map((p) => p.join(',')).join(' ');
+        const trafficColor = getRouteTrafficColor(route.id);
 
         return h(
           'g',
           { key: route.id },
-          // Outer white road casing
+          // Soft ambient glow under route
+          h('polyline', {
+            points: pointsString,
+            fill: 'none',
+            stroke: trafficColor,
+            strokeWidth: 4.2,
+            strokeLinejoin: 'round',
+            strokeLinecap: 'round',
+            opacity: 0.18,
+          }),
+          // Outer crisp road casing
           h('polyline', {
             points: pointsString,
             fill: 'none',
             stroke: '#ffffff',
-            strokeWidth: 2.6,
+            strokeWidth: 2.8,
             strokeLinejoin: 'round',
           }),
-          // Inner colored route polyline with traffic indication
+          // Inner colored route polyline
           h('polyline', {
             points: pointsString,
             fill: 'none',
-            stroke: getRouteTrafficColor(route.id),
-            strokeWidth: 1.3,
+            stroke: trafficColor,
+            strokeWidth: 1.5,
             strokeLinejoin: 'round',
             strokeLinecap: 'round',
           }),
@@ -258,33 +314,56 @@ function MapView({
           route.pick.map((stop, index) => {
             const coords = getPositionOnRoute(route, stop.p);
             if (!coords) return null;
-            const isIntermediate = index % 2 === 1;
+            const isTerminal = index === 0 || index === route.pick.length - 1;
 
             return h(
-              'circle',
-              {
-                key: index,
+              'g',
+              { key: index },
+              isTerminal &&
+                h('circle', {
+                  cx: coords[0],
+                  cy: coords[1],
+                  r: 2.4,
+                  fill: '#ffffff',
+                  stroke: trafficColor,
+                  strokeWidth: 0.6,
+                }),
+              h('circle', {
                 cx: coords[0],
                 cy: coords[1],
-                r: isIntermediate ? 1.0 : 1.7,
-                fill: isIntermediate ? '#ffffff' : '#0f1b33',
-                stroke: '#0f1b33',
-                strokeWidth: 0.4,
-              },
+                r: isTerminal ? 1.4 : 1.1,
+                fill: isTerminal ? trafficColor : '#ffffff',
+                stroke: isTerminal ? '#ffffff' : '#0f172a',
+                strokeWidth: 0.5,
+              }),
               h('title', null, stop.n)
             );
           }),
-          // Route label at starting terminal
+          // Route badge at starting terminal
           h(
-            'text',
-            {
-              x: route.pts[0][0],
-              y: route.pts[0][1] - 3,
-              fontSize: 2.5,
-              fontWeight: 700,
-              fill: '#0f1b33',
-            },
-            route.name
+            'g',
+            null,
+            h('rect', {
+              x: route.pts[0][0] - 1,
+              y: route.pts[0][1] - 5.5,
+              width: route.name.length * 1.6 + 4,
+              height: 3.4,
+              rx: 1.2,
+              fill: '#ffffff',
+              stroke: '#e2e8f0',
+              strokeWidth: 0.3,
+            }),
+            h(
+              'text',
+              {
+                x: route.pts[0][0] + 1,
+                y: route.pts[0][1] - 3.1,
+                fontSize: 2.1,
+                fontWeight: 800,
+                fill: '#0f172a',
+              },
+              route.name
+            )
           )
         );
       }),
@@ -327,18 +406,30 @@ function MapView({
         return h(
           'g',
           { key: `watch_${index}` },
+          h(
+            'circle',
+            {
+              cx: coords[0] + 1,
+              cy: coords[1] - 2.2,
+              r: 2.4,
+              fill: 'none',
+              stroke: '#2563eb',
+              strokeWidth: 0.5,
+              strokeDasharray: '1 0.8',
+            },
+            h('animateTransform', {
+              attributeName: 'transform',
+              type: 'rotate',
+              from: `0 ${coords[0] + 1} ${coords[1] - 2.2}`,
+              to: `360 ${coords[0] + 1} ${coords[1] - 2.2}`,
+              dur: '6s',
+              repeatCount: 'indefinite',
+            })
+          ),
           h('circle', {
             cx: coords[0] + 1,
             cy: coords[1] - 2.2,
-            r: 2,
-            fill: 'none',
-            stroke: '#2563eb',
-            strokeWidth: 0.5,
-          }),
-          h('circle', {
-            cx: coords[0] + 1,
-            cy: coords[1] - 2.2,
-            r: 1,
+            r: 1.1,
             fill: '#2563eb',
             stroke: '#ffffff',
             strokeWidth: 0.3,
@@ -347,7 +438,7 @@ function MapView({
         );
       }),
 
-    // 12. "You are here" Commuter Location Pin
+    // 12. "You are here" Commuter Location Pin (Modern Pulsing Beacon)
     userLocation &&
       h(
         'g',
@@ -357,13 +448,19 @@ function MapView({
           {
             cx: userLocation[0],
             cy: userLocation[1],
-            r: 3,
+            r: 3.5,
             fill: '#2563eb',
             opacity: 0.2,
           },
           h('animate', {
             attributeName: 'r',
-            values: '2.5;5;2.5',
+            values: '2.5;5.5;2.5',
+            dur: '2s',
+            repeatCount: 'indefinite',
+          }),
+          h('animate', {
+            attributeName: 'opacity',
+            values: '0.4;0.05;0.4',
             dur: '2s',
             repeatCount: 'indefinite',
           })
@@ -372,7 +469,8 @@ function MapView({
           d: `M${userLocation[0]} ${userLocation[1]} c-2.6-3.2-3.4-4.6-3.4-6.1a3.4 3.4 0 1 1 6.8 0c0 1.5-.8 2.9-3.4 6.1z`,
           fill: '#2563eb',
           stroke: '#ffffff',
-          strokeWidth: 0.5,
+          strokeWidth: 0.6,
+          filter: 'url(#markerShadow)',
         }),
         h('circle', {
           cx: userLocation[0],
@@ -380,22 +478,31 @@ function MapView({
           r: 1.3,
           fill: '#ffffff',
         }),
+        // Modern Pill Label
+        h('rect', {
+          x: userLocation[0] - 3.8,
+          y: userLocation[1] + 2,
+          width: 7.6,
+          height: 3.2,
+          rx: 1.6,
+          fill: '#1e3a8a',
+        }),
         h(
           'text',
           {
             x: userLocation[0],
-            y: userLocation[1] + 3.6,
-            fontSize: 2.3,
-            fontWeight: 700,
-            fill: '#1e3a8a',
+            y: userLocation[1] + 4.2,
+            fontSize: 2,
+            fontWeight: 800,
+            fill: '#ffffff',
             textAnchor: 'middle',
           },
-          'You'
+          'YOU'
         ),
         h('title', null, 'You are here (simulated)')
       ),
 
-    // 13. Active Vehicle Markers
+    // 13. Active Vehicle Markers (Modern Rounded Capsule with Beacon)
     showVehicles &&
       vehicles.map((vehicle) => {
         const route = routes.find((r) => r.id === vehicle.routeId);
@@ -404,12 +511,12 @@ function MapView({
 
         const info = getVehicleStatusInfo(vehicle);
         const statusColors = {
-          gr: '#6b7280',
-          er: '#dc2626',
+          gr: '#64748b',
+          er: '#ef4444',
           pr: '#2563eb',
-          ok: '#16a34a',
+          ok: '#10b981',
         };
-        const fillColor = statusColors[info.col] || '#16a34a';
+        const fillColor = statusColors[info.col] || '#10b981';
         const isSelected = selectedVehicleId === vehicle.id;
 
         return h(
@@ -424,25 +531,40 @@ function MapView({
               if (onSelectVehicle) onSelectVehicle(vehicle.id);
             },
           },
+          // Selected vehicle halo glow
+          isSelected &&
+            h('circle', {
+              cx: coords[0],
+              cy: coords[1],
+              r: 3.8,
+              fill: 'none',
+              stroke: '#2563eb',
+              strokeWidth: 0.6,
+              opacity: 0.8,
+            }),
+          // Vehicle capsule body
           h('rect', {
-            x: coords[0] - 2.3,
-            y: coords[1] - 1.5,
-            width: 4.6,
-            height: 3,
-            rx: 1,
+            x: coords[0] - 2.6,
+            y: coords[1] - 1.8,
+            width: 5.2,
+            height: 3.6,
+            rx: 1.8,
             fill: fillColor,
-            stroke: isSelected ? '#0f1b33' : '#ffffff',
-            strokeWidth: isSelected ? 0.6 : 0.4,
+            stroke: isSelected ? '#0f172a' : '#ffffff',
+            strokeWidth: isSelected ? 0.7 : 0.5,
+            filter: 'url(#markerShadow)',
           }),
+          // Unit ID digits
           h(
             'text',
             {
               x: coords[0],
-              y: coords[1] + 0.7,
-              fontSize: 1.7,
+              y: coords[1] + 0.8,
+              fontSize: 1.8,
               fill: '#ffffff',
               textAnchor: 'middle',
-              fontWeight: 700,
+              fontWeight: 800,
+              letterSpacing: 0.1,
             },
             vehicle.unit.slice(-3)
           ),
@@ -450,7 +572,7 @@ function MapView({
         );
       }),
 
-    // 14. Hover / Click Tooltip Overlay
+    // 14. Modern Vehicle Diagnostic Inspection Tooltip (Card Popover)
     (() => {
       if (!inspectedVehicle) return null;
       const route = routes.find((r) => r.id === inspectedVehicle.routeId);
@@ -483,30 +605,30 @@ function MapView({
           : `${inspectedVehicle.avail} of ${inspectedVehicle.total} seats free`,
         ...(eta
           ? [
-              `Simulated ETA to ${nextStop.n}: ${formatMinutes(eta.adj)}`,
+              `ETA to ${nextStop.n}: ${formatMinutes(eta.adj)}`,
               eta.lv && eta.f > 1
-                ? `+${formatMinutes(eta.adj - eta.base)} due to ${eta.lv.toLowerCase()} traffic congestion`
+                ? `+${formatMinutes(eta.adj - eta.base)} due to ${eta.lv.toLowerCase()} traffic`
                 : eta.lv
                 ? 'Light traffic, no delay'
-                : 'No traffic report',
+                : 'No traffic delay reported',
             ]
           : ['ETA unavailable']),
         `Updated ${formatTimeAgo(inspectedVehicle.lastAt)}`,
-        'Source: simulated GPS',
+        'Telemetry: Simulated LoRaWAN',
       ];
 
-      const tooltipWidth = 52;
-      const tooltipHeight = lines.length * 3 + 2;
+      const tooltipWidth = 56;
+      const tooltipHeight = lines.length * 3.2 + 3;
 
-      // Ensure tooltip stays nicely positioned inside visible viewBox boundaries
+      // Keep tooltip safely inside visible viewBox
       const tooltipX = Math.max(
-        viewBox[0] + 1,
-        Math.min(viewBox[0] + viewBox[2] - tooltipWidth - 1, coords[0] - tooltipWidth / 2)
+        viewBox[0] + 1.5,
+        Math.min(viewBox[0] + viewBox[2] - tooltipWidth - 1.5, coords[0] - tooltipWidth / 2)
       );
       const tooltipY =
-        coords[1] - tooltipHeight - 3 < viewBox[1] + 1
-          ? coords[1] + 3
-          : coords[1] - tooltipHeight - 3;
+        coords[1] - tooltipHeight - 3.5 < viewBox[1] + 1.5
+          ? coords[1] + 3.5
+          : coords[1] - tooltipHeight - 3.5;
 
       return h(
         'g',
@@ -516,21 +638,22 @@ function MapView({
           y: tooltipY,
           width: tooltipWidth,
           height: tooltipHeight,
-          rx: 1.5,
+          rx: 2.2,
           fill: '#ffffff',
-          stroke: '#2563eb',
-          strokeWidth: 0.4,
+          stroke: '#3b82f6',
+          strokeWidth: 0.5,
+          filter: 'url(#cardShadow)',
         }),
         lines.map((lineText, idx) =>
           h(
             'text',
             {
               key: idx,
-              x: tooltipX + 2,
-              y: tooltipY + 3.6 + idx * 3,
-              fontSize: 2.1,
-              fontWeight: idx === 0 ? 700 : 400,
-              fill: '#0f1b33',
+              x: tooltipX + 2.5,
+              y: tooltipY + 3.8 + idx * 3.2,
+              fontSize: idx === 0 ? 2.3 : 2.0,
+              fontWeight: idx === 0 ? 800 : idx === 1 ? 600 : 400,
+              fill: idx === 0 ? '#1e3a8a' : idx === 1 ? '#0f172a' : '#475569',
             },
             lineText
           )
@@ -541,18 +664,36 @@ function MapView({
 }
 
 /**
- * Map Color Key & Legend Bar
+ * Modern Map Color Key & Legend Bar
  */
 function Legend() {
   return h(
     'div',
     { className: 'lg' },
-    h('span', null, h('i', { style: { background: '#16a34a' } }), 'Light'),
-    h('span', null, h('i', { style: { background: '#f59e0b' } }), 'Moderate'),
-    h('span', null, h('i', { style: { background: '#dc2626' } }), 'Heavy traffic'),
+    h(
+      'span',
+      { style: { display: 'inline-flex', alignItems: 'center' } },
+      h('i', { style: { background: '#10b981' } }),
+      'Light'
+    ),
+    h(
+      'span',
+      { style: { display: 'inline-flex', alignItems: 'center' } },
+      h('i', { style: { background: '#f59e0b' } }),
+      'Moderate'
+    ),
+    h(
+      'span',
+      { style: { display: 'inline-flex', alignItems: 'center' } },
+      h('i', { style: { background: '#ef4444' } }),
+      'Heavy'
+    ),
     h('span', null, 'Demand ', h('span', { className: 'heat' })),
-    h('span', null, 'Vehicle: green on route, blue terminal, red out, gray stale'),
-    h('span', null, 'Schematic map · simulated data')
+    h(
+      'span',
+      { style: { color: 'var(--tx-muted)', marginLeft: 'auto' } },
+      '● Green: On route · Blue: Terminal · Red: Out · Gray: Stale'
+    )
   );
 }
 

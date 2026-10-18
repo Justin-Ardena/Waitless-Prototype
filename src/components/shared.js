@@ -1,22 +1,26 @@
 /**
- * WaitLess Prototype - Shared UI Components
+ * WaitLess Prototype - Modern Shared UI Components
  *
- * Provides reusable components:
- * - Badges and Severity color mappers
- * - ETA cards with traffic congestion impact analysis
- * - Fare guide and cooperative fare matrix settings editor
- * - Trip planner with stop selection and nearest-stop pin locator
- * - Vehicle information cards with live status badges
- * - Map layers toggle button
- * - Draggable bottom sheet with touch/pointer snapping
- * - Drag-to-scroll carousel gesture handlers
+ * Implements:
+ * - Status & Severity Badges with border rings
+ * - Visual transit trip timeline planner with From/To route connectors
+ * - Vehicle fleet cards with visual seat occupancy meters
+ * - Real-time ETA prediction cards with congestion chips
+ * - Cooperative fare guide & matrix configuration editor
+ * - Floating glassmorphic map layers toggle
+ * - Smooth draggable bottom sheet with touch snap points
  */
 
 /**
  * Status or Severity Badge
  */
-function Badge({ c: colorClass, children }) {
-  return h('span', { className: `b ${colorClass}` }, children);
+function Badge({ c: colorClass, children, icon = null }) {
+  return h(
+    'span',
+    { className: `b ${colorClass}` },
+    icon && h(icon, { size: 12 }),
+    children
+  );
 }
 const B = Badge; // Backward-compatible alias
 
@@ -49,7 +53,12 @@ function EtaCard({ rid = 'all' }) {
   return h(
     'div',
     { className: 'c' },
-    h('h3', null, 'ETA with traffic congestion (simulated)'),
+    h(
+      'h3',
+      null,
+      h('span', null, 'ETA with Traffic Congestion'),
+      h('span', { className: 'tag' }, 'SIMULATED')
+    ),
     routes.map((route) => {
       const targetStop = route.pick[Math.min(1, route.pick.length - 1)];
 
@@ -64,35 +73,44 @@ function EtaCard({ rid = 'all' }) {
 
       return h(
         'div',
-        { key: route.id, style: { marginBottom: 6 } },
+        {
+          key: route.id,
+          style: {
+            marginBottom: 10,
+            padding: '10px 12px',
+            background: 'var(--surface-subtle)',
+            borderRadius: 'var(--radius-sm)',
+            border: '1px solid var(--border-subtle)',
+          },
+        },
         h(
           'div',
-          { className: 'row' },
-          h('b', null, route.name),
+          { className: 'row', style: { justifyContent: 'space-between' } },
+          h('b', { style: { fontSize: 13, color: 'var(--tx-primary)' } }, route.name),
           traffic.lv &&
             h(Badge, { c: getLevelColorClass(traffic.lv) }, `${traffic.lv} traffic`)
         ),
         h(
           'div',
-          { className: 'mu' },
+          { className: 'mu', style: { marginTop: 4 } },
           nextVehicleArrival
-            ? `Next unit ${nextVehicleArrival.v.unit} reaches ${targetStop.n} in ${formatMinutes(
+            ? `Next unit ${nextVehicleArrival.v.unit} arrives at ${targetStop.n} in ${formatMinutes(
                 nextVehicleArrival.e.adj
               )}. ${
                 nextVehicleArrival.e.f > 1
-                  ? `Due to ${traffic.lv.toLowerCase()} traffic congestion, this adds ${formatMinutes(
+                  ? `Due to ${traffic.lv.toLowerCase()} traffic congestion, this adds +${formatMinutes(
                       nextVehicleArrival.e.adj - nextVehicleArrival.e.base
-                    )} (${formatMinutes(nextVehicleArrival.e.base)} without traffic).`
-                  : 'No traffic delay reported.'
+                    )} (${formatMinutes(nextVehicleArrival.e.base)} in normal flow).`
+                  : 'No traffic delay reported on this stretch.'
               }`
-            : 'ETA unavailable: no vehicle with fresh location data.'
+            : 'ETA unavailable: no operating vehicle currently reporting fresh telemetry.'
         )
       );
     }),
     h(
       'div',
       { className: 'mu' },
-      'Estimates use simulated traffic and vehicle data, not live predictions.'
+      'Estimates use simulated traffic and vehicle telemetry, not live predictions.'
     )
   );
 }
@@ -108,31 +126,67 @@ function FareCard({ r: route }) {
   return h(
     'div',
     { className: 'c' },
-    h('h3', null, `Fare guide: ${route.name}`),
     h(
-      'div',
-      { className: 'row' },
-      h(Badge, { c: 'pr' }, `Full route ₱${fullRouteFare.reg}`),
-      h(Badge, { c: 'ok' }, `Student/Senior/PWD ₱${fullRouteFare.dis}`),
-      h('span', { className: 'mu' }, `${fullRouteFare.km.toFixed(1)} km`)
+      'h3',
+      null,
+      h('span', null, `Fare Guide · ${route.name}`),
+      h('span', { className: 'tag' }, `${fullRouteFare.km.toFixed(1)} km`)
     ),
-    route.pick.slice(1).map((stop, index) => {
-      const segmentFare = calculateFare(state, route, route.pick[0].p, stop.p);
-      return h(
-        'div',
-        { key: index, className: 'row mu' },
-        h(
-          'span',
-          { style: { flex: 1 } },
-          `${route.pick[0].n} → ${stop.n} (${segmentFare.km.toFixed(1)} km)`
-        ),
-        h('b', null, `₱${segmentFare.reg} / ₱${segmentFare.dis}`)
-      );
-    }),
     h(
       'div',
-      { className: 'mu' },
-      `Sample fares: ₱${fareConfig.base} for the first ${fareConfig.km} km + ₱${fareConfig.per}/km, ${fareConfig.disc}% discount. Not official rates.`
+      {
+        className: 'row',
+        style: {
+          marginBottom: 12,
+          padding: '10px 12px',
+          background: 'var(--surface-subtle)',
+          borderRadius: 'var(--radius-sm)',
+          border: '1px solid var(--border-subtle)',
+        },
+      },
+      h(
+        'div',
+        { style: { flex: 1 } },
+        h('div', { style: { fontSize: 11, color: 'var(--tx-muted)' } }, 'Regular Fare'),
+        h('b', { style: { fontSize: 16, color: 'var(--brand-700)' } }, `₱${fullRouteFare.reg}`)
+      ),
+      h(
+        'div',
+        { style: { flex: 1 } },
+        h('div', { style: { fontSize: 11, color: 'var(--tx-muted)' } }, 'Student / Senior / PWD'),
+        h('b', { style: { fontSize: 16, color: 'var(--ok-tx)' } }, `₱${fullRouteFare.dis}`)
+      )
+    ),
+    h(
+      'div',
+      { style: { display: 'grid', gap: 6 } },
+      route.pick.slice(1).map((stop, index) => {
+        const segmentFare = calculateFare(state, route, route.pick[0].p, stop.p);
+        return h(
+          'div',
+          {
+            key: index,
+            className: 'row mu',
+            style: {
+              padding: '6px 8px',
+              borderBottom: '1px solid var(--border-subtle)',
+            },
+          },
+          h(
+            'span',
+            { style: { flex: 1, color: 'var(--tx-primary)' } },
+            `${route.pick[0].n} → ${stop.n} `,
+            h('small', { style: { color: 'var(--tx-muted)' } }, `(${segmentFare.km.toFixed(1)} km)`)
+          ),
+          h('b', { style: { color: 'var(--brand-900)' } }, `₱${segmentFare.reg}`),
+          h('span', { style: { color: 'var(--ok-tx)', fontWeight: 600 } }, `/ ₱${segmentFare.dis}`)
+        );
+      })
+    ),
+    h(
+      'div',
+      { className: 'mu', style: { marginTop: 10 } },
+      `LTFRB Rate Formula: ₱${fareConfig.base} base (first ${fareConfig.km} km) + ₱${fareConfig.per}/km, ${fareConfig.disc}% statutory discount. Demonstration rates.`
     )
   );
 }
@@ -155,56 +209,82 @@ function FareSettings() {
   };
 
   const fields = [
-    ['base', 'Base ₱'],
-    ['km', 'Base km'],
-    ['per', '₱ per km'],
-    ['disc', 'Discount %'],
+    ['base', 'Base Fare (₱)'],
+    ['km', 'Base Distance (km)'],
+    ['per', 'Per Succeeding km (₱)'],
+    ['disc', 'Statutory Discount (%)'],
   ];
 
   return h(
     'div',
     { className: 'c' },
-    h('h3', null, 'Fare settings (sample)'),
+    h(
+      'h3',
+      null,
+      h('span', null, 'Cooperative Fare Matrix Settings'),
+      h('span', { className: 'tag' }, 'PUVMP')
+    ),
     h(
       'div',
-      { className: 'row' },
+      {
+        style: {
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
+          gap: 10,
+          marginBottom: 12,
+        },
+      },
       fields.map(([key, label]) =>
         h(
           'label',
-          { key, className: 'mu' },
-          `${label} `,
+          {
+            key,
+            style: {
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 4,
+              fontSize: 11.5,
+              fontWeight: 600,
+              color: 'var(--tx-secondary)',
+            },
+          },
+          label,
           h('input', {
             type: 'number',
             min: 0,
             step: 'any',
-            style: { width: 64 },
             value: currentFare[key],
             onChange: (e) => updateSetting(key, e.target.value),
             'aria-label': label,
+            style: { width: '100%', padding: '7px 10px' },
           })
         )
       )
     ),
-    state.routes
-      .filter((route) => route.active)
-      .map((route) => {
-        const fullFare = calculateFare(state, route, 0, 1);
-        return h(
-          'div',
-          { key: route.id, className: 'mu' },
-          `${route.name}: ₱${fullFare.reg} regular, ₱${fullFare.dis} discounted (${fullFare.km.toFixed(1)} km)`
-        );
-      }),
     h(
       'div',
-      { className: 'mu' },
-      'Fares update in the Commuter app. Demo values, not LTFRB-approved rates.'
+      { style: { display: 'grid', gap: 4 } },
+      state.routes
+        .filter((route) => route.active)
+        .map((route) => {
+          const fullFare = calculateFare(state, route, 0, 1);
+          return h(
+            'div',
+            { key: route.id, className: 'mu' },
+            `• ${route.name}: ₱${fullFare.reg} regular, ₱${fullFare.dis} discounted (${fullFare.km.toFixed(1)} km)`
+          );
+        })
+    ),
+    h(
+      'div',
+      { className: 'mu', style: { marginTop: 8 } },
+      'Adjusted fare parameters synchronize instantly across all Commuter apps. Demo rates.'
     )
   );
 }
 
 /**
- * Trip Planner: origin/destination picker, ETA, and fare estimate
+ * Visual Journey Trip Planner with Vertical Timeline Connectors
  */
 function TripPlan({
   r: route,
@@ -285,91 +365,195 @@ function TripPlan({
   return h(
     'div',
     { className: 'c' },
-    h('h3', null, 'Plan your trip'),
+    h(
+      'h3',
+      null,
+      h('span', null, 'Plan Your Journey'),
+      h(
+        'button',
+        {
+          onClick: selectNearestStop,
+          style: {
+            padding: '4px 10px',
+            fontSize: 11.5,
+            borderRadius: 'var(--radius-full)',
+            background: 'var(--brand-50)',
+            color: 'var(--brand-700)',
+            border: '1px solid var(--brand-200)',
+          },
+        },
+        '📍 Use my pin'
+      )
+    ),
+
+    // Visual Vertical Transit Stop Selectors
     h(
       'div',
-      { className: 'row' },
-      h(
-        'select',
-        {
-          value: safeOriginIdx,
-          onChange: (e) => setOriginIndex(+e.target.value),
-          'aria-label': 'From',
+      {
+        style: {
+          display: 'grid',
+          gap: 10,
+          background: 'var(--surface-subtle)',
+          padding: '12px 14px',
+          borderRadius: 'var(--radius-md)',
+          border: '1px solid var(--border-subtle)',
+          position: 'relative',
         },
-        route.pick.map((stop, idx) =>
-          h('option', { key: idx, value: idx }, `From: ${stop.n}`)
+      },
+      // Origin Stop Selector Row
+      h(
+        'div',
+        { style: { display: 'flex', alignItems: 'center', gap: 10 } },
+        h('span', {
+          style: {
+            width: 10,
+            height: 10,
+            borderRadius: '50%',
+            background: 'var(--ok-primary)',
+            boxShadow: '0 0 0 3px rgba(16, 185, 129, 0.2)',
+            flexShrink: 0,
+          },
+        }),
+        h(
+          'select',
+          {
+            value: safeOriginIdx,
+            onChange: (e) => setOriginIndex(+e.target.value),
+            'aria-label': 'From',
+            style: { flex: 1, padding: '7px 10px', fontWeight: 600 },
+          },
+          route.pick.map((stop, idx) =>
+            h('option', { key: idx, value: idx }, `From: ${stop.n}`)
+          )
         )
       ),
+
+      // Destination Stop Selector Row
       h(
-        'select',
-        {
-          value: safeDestIdx,
-          onChange: (e) => setDestIndex(+e.target.value),
-          'aria-label': 'To',
-        },
-        route.pick.map((stop, idx) =>
-          h('option', { key: idx, value: idx }, `To: ${stop.n}`)
+        'div',
+        { style: { display: 'flex', alignItems: 'center', gap: 10 } },
+        h('span', {
+          style: {
+            width: 10,
+            height: 10,
+            borderRadius: '50%',
+            background: 'var(--brand-600)',
+            boxShadow: '0 0 0 3px rgba(37, 99, 235, 0.2)',
+            flexShrink: 0,
+          },
+        }),
+        h(
+          'select',
+          {
+            value: safeDestIdx,
+            onChange: (e) => setDestIndex(+e.target.value),
+            'aria-label': 'To',
+            style: { flex: 1, padding: '7px 10px', fontWeight: 600 },
+          },
+          route.pick.map((stop, idx) =>
+            h('option', { key: idx, value: idx }, `To: ${stop.n}`)
+          )
         )
-      ),
-      h('button', { onClick: selectNearestStop }, 'Use my pin')
+      )
     ),
 
     safeOriginIdx === safeDestIdx
       ? h(
           'div',
-          { className: 'mu', style: { marginTop: 6 } },
-          'Choose a different destination to see the fare and travel time.'
+          { className: 'mu', style: { marginTop: 8 } },
+          'Choose a different destination to calculate estimated travel time and fare.'
         )
       : h(
           'div',
-          { style: { marginTop: 8, display: 'grid', gap: 4 } },
+          { style: { marginTop: 12, display: 'grid', gap: 8 } },
+          // Fare & Distance Pills
           h(
             'div',
             { className: 'row' },
-            h(Badge, { c: 'pr' }, `Fare ₱${fare.reg}`),
-            h(Badge, { c: 'ok' }, `Student/Senior/PWD ₱${fare.dis}`),
-            h('span', { className: 'mu' }, `${fare.km.toFixed(1)} km`)
+            h(Badge, { c: 'pr' }, `₱${fare.reg} Regular`),
+            h(Badge, { c: 'ok' }, `₱${fare.dis} Student/Senior/PWD`),
+            h(
+              'span',
+              { className: 'mu', style: { fontWeight: 600 } },
+              `${fare.km.toFixed(1)} km distance`
+            )
           ),
+
+          // Next Vehicle Wait Time
           h(
             'div',
-            null,
-            'Wait for next unit: ',
-            h('b', null, bestVehicle ? formatMinutes(bestVehicle.e.adj) : 'unavailable'),
+            {
+              style: {
+                padding: '8px 12px',
+                background: 'var(--surface-subtle)',
+                borderRadius: 'var(--radius-sm)',
+                border: '1px solid var(--border-subtle)',
+              },
+            },
+            h('span', { style: { color: 'var(--tx-muted)' } }, 'Wait for next unit: '),
+            h(
+              'b',
+              { style: { color: 'var(--brand-700)' } },
+              bestVehicle ? formatMinutes(bestVehicle.e.adj) : 'unavailable'
+            ),
             bestVehicle &&
               h(
                 'span',
-                { className: 'mu' },
-                ` (${bestVehicle.v.unit}${bestVehicle.e.f > 1 ? ', slowed by traffic' : ''})`
+                { className: 'mu', style: { marginLeft: 4 } },
+                `(${bestVehicle.v.unit}${bestVehicle.e.f > 1 ? ', slowed by traffic' : ''})`
               )
           ),
+
+          // Ride Duration
           h(
             'div',
-            null,
-            'Ride time: ',
+            {
+              style: {
+                padding: '8px 12px',
+                background: 'var(--surface-subtle)',
+                borderRadius: 'var(--radius-sm)',
+                border: '1px solid var(--border-subtle)',
+              },
+            },
+            h('span', { style: { color: 'var(--tx-muted)' } }, 'Ride travel time: '),
             h('b', null, formatMinutes(trafficRideMinutes)),
             h(
-              'span',
-              { className: 'mu' },
+              'div',
+              { className: 'mu', style: { marginTop: 2 } },
               worstLevel && trafficMultiplier > 1
-                ? ` — due to ${worstLevel.toLowerCase()} traffic congestion between ${originStop.n} and ${destStop.n} (+${formatMinutes(
+                ? `Due to ${worstLevel.toLowerCase()} traffic between ${originStop.n} and ${destStop.n} (+${formatMinutes(
                     trafficRideMinutes - baseRideMinutes
-                  )}; ${formatMinutes(baseRideMinutes)} without traffic)`
+                  )}; ${formatMinutes(baseRideMinutes)} in normal conditions)`
                 : worstLevel
-                ? ' — light traffic, no delay'
-                : ' — no traffic report on this stretch'
+                ? 'Light traffic, on schedule'
+                : 'No delays reported on this corridor'
             )
           ),
+
+          // Total Journey Estimate
           bestVehicle &&
             h(
               'div',
-              { style: { fontWeight: 700, color: '#1d4ed8' } },
-              `Estimated total: ${formatMinutes(bestVehicle.e.adj + trafficRideMinutes)}`
-            ),
-          h(
-            'div',
-            { className: 'mu' },
-            'Simulated fare and times; not official or live predictions.'
-          )
+              {
+                style: {
+                  padding: '10px 14px',
+                  background: 'var(--brand-50)',
+                  border: '1px solid var(--brand-200)',
+                  borderRadius: 'var(--radius-sm)',
+                  fontWeight: 700,
+                  color: 'var(--brand-900)',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                },
+              },
+              h('span', null, 'Total Estimated Journey Time:'),
+              h(
+                'span',
+                { style: { fontSize: 16, color: 'var(--brand-700)' } },
+                formatMinutes(bestVehicle.e.adj + trafficRideMinutes)
+              )
+            )
         )
   );
 }
@@ -387,57 +571,130 @@ function CommNote() {
 
   return h(
     'div',
-    { className: 'mu', style: { margin: '6px 0' } },
+    {
+      className: 'mu',
+      style: {
+        margin: '6px 0',
+        padding: '6px 10px',
+        background: 'var(--surface-subtle)',
+        borderRadius: 'var(--radius-sm)',
+        border: '1px solid var(--border-subtle)',
+      },
+    },
     h(
       'b',
-      { style: { color: '#1d4ed8' } },
-      `Commuters on the app: ${totalCommuters}`
+      { style: { color: 'var(--brand-700)' } },
+      `Commuters on WaitLess: ${totalCommuters}`
     ),
-    ` (simulated, anonymous): ${waitingCommuters} waiting near demand hotspots, ${state.watch.length} with an active approaching alert. Blue dots are commuters; ringed dots have an alert set.`
+    ` (simulated): ${waitingCommuters} waiting near demand hotspots, ${state.watch.length} with an active approaching alert.`
   );
 }
 
 /**
- * Vehicle Status Card
+ * Modern Vehicle Status Card with Visual Seat Occupancy Meter
  */
 function VCard({ v: vehicle, pk: pickupPoint, sel: isSelected, onSel: onSelect }) {
   const state = useStoreState();
   const info = getVehicleStatusInfo(vehicle);
   const route = getRouteById(state, vehicle.routeId);
 
+  // Seat occupancy calculations
+  const totalSeats = vehicle.total || 33;
+  const availSeats = vehicle.avail;
+  const occupiedSeats = availSeats == null ? null : Math.max(0, totalSeats - availSeats);
+  const occupancyRatio = availSeats == null ? 0 : Math.min(1, occupiedSeats / totalSeats);
+
+  const occupancyColor =
+    availSeats === 0
+      ? 'var(--er-primary)'
+      : availSeats != null && availSeats <= 8
+      ? 'var(--wa-primary)'
+      : 'var(--ok-primary)';
+
   return h(
     'div',
     {
       className: `c ${isSelected ? 'sel' : ''}`,
       onClick: () => onSelect && onSelect(vehicle.id),
+      style: { cursor: 'pointer', transition: 'all 0.15s ease' },
     },
+    // Top Row: Unit, Status Badge, Seat Badge
     h(
       'div',
-      { className: 'row' },
-      h('b', null, vehicle.unit),
-      h(Badge, { c: info.col }, info.label),
+      { className: 'row', style: { justifyContent: 'space-between' } },
+      h(
+        'div',
+        { style: { display: 'flex', alignItems: 'center', gap: 6 } },
+        h('b', { style: { fontSize: 14.5, color: 'var(--tx-primary)' } }, vehicle.unit),
+        h(Badge, { c: info.col }, info.label)
+      ),
       h(Badge, { c: info.seatCol }, info.seat)
     ),
+
+    // Visual Seat Occupancy Progress Bar
+    availSeats != null &&
+      h(
+        'div',
+        { style: { marginTop: 8 } },
+        h(
+          'div',
+          {
+            style: {
+              display: 'flex',
+              justifyContent: 'space-between',
+              fontSize: 11,
+              fontWeight: 600,
+              color: 'var(--tx-muted)',
+              marginBottom: 4,
+            },
+          },
+          h('span', null, `${availSeats} of ${totalSeats} seats available`),
+          h('span', null, `${Math.round(occupancyRatio * 100)}% full`)
+        ),
+        h(
+          'div',
+          {
+            style: {
+              height: 5,
+              borderRadius: 'var(--radius-full)',
+              background: '#e2e8f0',
+              overflow: 'hidden',
+            },
+          },
+          h('i', {
+            style: {
+              display: 'block',
+              height: '100%',
+              width: `${occupancyRatio * 100}%`,
+              borderRadius: 'var(--radius-full)',
+              background: occupancyColor,
+              transition: 'width 0.3s ease',
+            },
+          })
+        )
+      ),
+
+    // Route & Telemetry Metadata
     h(
       'div',
-      { className: 'mu' },
-      `${route ? route.name : 'Unassigned'} · ${
-        vehicle.avail == null
-          ? 'Seats unknown'
-          : `${vehicle.avail} of ${vehicle.total} seats available`
-      } (${vehicle.seatSrc})`
-    ),
-    h(
-      'div',
-      { className: 'mu' },
-      `Last update ${formatTimeAgo(vehicle.lastAt)} · Source: ${
-        state.link && !vehicle.mute ? 'Simulated GPS' : 'Last known (no signal)'
+      { className: 'mu', style: { marginTop: 6 } },
+      `${route ? route.name : 'Unassigned'} · Updated ${formatTimeAgo(vehicle.lastAt)} · ${
+        state.link && !vehicle.mute ? 'Live GPS' : 'Last known ping'
       }`
     ),
+
+    // Approaching ETA
     pickupPoint &&
       h(
         'div',
-        { style: { fontWeight: 600, color: '#1d4ed8' } },
+        {
+          style: {
+            marginTop: 6,
+            fontWeight: 700,
+            color: 'var(--brand-700)',
+            fontSize: 12.5,
+          },
+        },
         getEtaDescription(state, vehicle, pickupPoint)
       )
   );
@@ -491,7 +748,7 @@ function LayersBtn({ L: layers, setL: setLayers, items }) {
 
   return h(
     'div',
-    { style: { position: 'absolute', top: 10, right: 10, zIndex: 7 } },
+    { style: { position: 'absolute', top: 12, right: 12, zIndex: 15 } },
     h(
       'button',
       {
@@ -499,16 +756,22 @@ function LayersBtn({ L: layers, setL: setLayers, items }) {
         'aria-expanded': isOpen,
         onClick: () => setIsOpen(!isOpen),
         style: {
-          borderRadius: 12,
-          padding: '8px 12px',
-          boxShadow: '0 4px 12px rgba(15,27,51,.22)',
-          border: 0,
+          borderRadius: 'var(--radius-full)',
+          padding: '8px 14px',
+          boxShadow: 'var(--shadow-md)',
+          border: '1px solid var(--border-subtle)',
           fontWeight: 700,
-          display: 'block',
+          background: 'rgba(255, 255, 255, 0.95)',
+          backdropFilter: 'blur(12px)',
+          color: 'var(--tx-primary)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 6,
           marginLeft: 'auto',
         },
       },
-      '⧉ Layers'
+      h(Icons.Layers, { size: 14 }),
+      'Layers'
     ),
     isOpen &&
       h(
@@ -516,15 +779,16 @@ function LayersBtn({ L: layers, setL: setLayers, items }) {
         {
           className: 'c',
           style: {
-            marginTop: 6,
-            width: 220,
-            boxShadow: '0 8px 24px rgba(15,27,51,.24)',
+            marginTop: 8,
+            width: 240,
+            boxShadow: 'var(--shadow-lg)',
+            border: '1px solid var(--border-subtle)',
           },
         },
         items.map(([key, label]) =>
           h(
             'label',
-            { key, className: 'row' },
+            { key, className: 'row', style: { padding: '4px 0', cursor: 'pointer' } },
             h('input', {
               type: 'checkbox',
               checked: layers[key],
@@ -582,8 +846,8 @@ function MapSheet({ mapFn, top, children }) {
     return () => observer.disconnect();
   }, []);
 
-  // Snap position candidates (collapsed: 14%, default: 42%, expanded: 80%)
-  const SNAP_POINTS = [0.14, 0.42, 0.8];
+  // Snap position candidates (collapsed: 14%, default: 42%, expanded: 82%)
+  const SNAP_POINTS = [0.14, 0.42, 0.82];
 
   return h(
     'div',
@@ -596,7 +860,7 @@ function MapSheet({ mapFn, top, children }) {
         className: 'sheet',
         style: {
           height: `${snapRatio * 100}%`,
-          transition: isDragging ? 'none' : 'height .25s ease',
+          transition: isDragging ? 'none' : 'height 0.28s cubic-bezier(0.16, 1, 0.3, 1)',
         },
       },
       // Draggable grab bar handle
@@ -609,7 +873,7 @@ function MapSheet({ mapFn, top, children }) {
           'aria-label': 'Drag to resize panel',
           'aria-valuenow': Math.round(snapRatio * 100),
           onKeyDown: (e) => {
-            if (e.key === 'ArrowUp') setSnapRatio(Math.min(0.8, snapRatio + 0.2));
+            if (e.key === 'ArrowUp') setSnapRatio(Math.min(0.82, snapRatio + 0.2));
             if (e.key === 'ArrowDown') setSnapRatio(Math.max(0.14, snapRatio - 0.2));
           },
           onPointerDown: (e) => {

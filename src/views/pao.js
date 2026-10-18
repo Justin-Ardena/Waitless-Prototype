@@ -1,10 +1,10 @@
 /**
- * WaitLess Prototype - Passenger Assistance Officer (PAO) View
+ * WaitLess Prototype - Modern Passenger Assistance Officer (PAO) View
  *
  * Implements:
- * - Mobile field interface for ground officers
- * - Route filtering and situational overview
- * - Passenger demand hotspot monitoring with visual density meters
+ * - Handheld mobile field interface for ground officers
+ * - Route filtering and live situational overview
+ * - Passenger queue density monitoring with visual progress meters
  * - Real-time traffic condition and incident monitoring
  * - Instant field incident reporting with automatic alert escalation
  */
@@ -40,7 +40,7 @@ function PAO() {
     selectedRouteId === 'all' ? null : getRouteById(state, selectedRouteId);
   const displayedRoutes = selectedRoute ? [selectedRoute] : activeRoutes;
 
-  // Extract unique stop locations for the incident location dropdown
+  // Unique stop locations for the incident location dropdown
   const uniqueLocations = [
     ...new Set(state.routes.flatMap((r) => r.pick.map((stop) => stop.n))),
   ];
@@ -71,7 +71,7 @@ function PAO() {
   const inspectedVehicle =
     selectedVehicleId && state.vehicles.find((v) => v.id === selectedVehicleId);
 
-  const renderTabChip = (key, label) =>
+  const renderTabChip = (key, label, icon) =>
     h(
       'button',
       {
@@ -79,32 +79,43 @@ function PAO() {
         className: activeTab === key ? 'p' : '',
         onClick: () => setActiveTab(key),
       },
+      icon && h(icon, { size: 13 }),
       label
     );
 
   // Demand density progress bar
-  const renderDemandBar = (count) =>
-    h(
+  const renderDemandBar = (count) => {
+    const ratio = Math.min(1, count / 40);
+    const color =
+      count >= 25
+        ? 'var(--er-primary)'
+        : count >= 15
+        ? 'var(--wa-primary)'
+        : 'var(--ok-primary)';
+
+    return h(
       'div',
       {
         style: {
           height: 6,
-          borderRadius: 9,
-          background: '#e2ebf8',
-          marginTop: 4,
+          borderRadius: 'var(--radius-full)',
+          background: '#e2e8f0',
+          marginTop: 6,
+          overflow: 'hidden',
         },
       },
       h('i', {
         style: {
           display: 'block',
           height: '100%',
-          width: `${Math.min(100, count * 2.5)}%`,
-          borderRadius: 9,
-          background:
-            count >= 25 ? '#dc2626' : count >= 12 ? '#f59e0b' : '#22c55e',
+          width: `${ratio * 100}%`,
+          borderRadius: 'var(--radius-full)',
+          background: color,
+          transition: 'width 0.3s ease',
         },
       })
     );
+  };
 
   const handleSaveObservation = () => {
     if (!reportForm.loc) {
@@ -150,7 +161,7 @@ function PAO() {
 
     setReportForm({ ...reportForm, desc: '' });
     setFormSuccessMessage(
-      'Observation saved. It now appears under Recent observations and in the Cooperative view.'
+      'Observation submitted. Escalated to Cooperative Operations Center.'
     );
   };
 
@@ -192,7 +203,7 @@ function PAO() {
             className: selectedRouteId === 'all' ? 'p' : '',
             onClick: () => setSelectedRouteId('all'),
           },
-          'All routes'
+          'All Routes'
         ),
         activeRoutes.map((route) =>
           h(
@@ -208,34 +219,34 @@ function PAO() {
       ),
     },
 
-    // Header
+    // Header Title
     h(
       'div',
-      null,
-      h('b', { style: { fontSize: 17 } }, 'PAO field monitor'),
+      { className: 'row', style: { justifyContent: 'space-between', alignItems: 'flex-start' } },
       h(
         'div',
-        { className: 'mu' },
-        `${selectedRoute ? selectedRoute.name : 'All routes'} · ${new Date().toLocaleString(
-          [],
-          {
-            month: 'short',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
-          }
-        )} · simulated data`
-      )
+        null,
+        h('b', { style: { fontSize: 17, color: 'var(--tx-primary)' } }, 'PAO Field Monitor'),
+        h(
+          'div',
+          { className: 'mu' },
+          `${selectedRoute ? selectedRoute.name : 'All network corridors'} · ${new Date().toLocaleTimeString(
+            [],
+            { hour: '2-digit', minute: '2-digit' }
+          )}`
+        )
+      ),
+      h(Badge, { c: 'pr' }, 'FIELD TERMINAL')
     ),
 
     // Navigation Tabs
     h(
       'div',
       { className: 'seg' },
-      renderTabChip('over', 'Overview'),
-      renderTabChip('dem', 'Demand'),
-      renderTabChip('tra', 'Traffic'),
-      renderTabChip('rep', 'Report')
+      renderTabChip('over', 'Overview', Icons.Sliders),
+      renderTabChip('dem', 'Queues', Icons.Users),
+      renderTabChip('tra', 'Traffic', Icons.AlertTriangle),
+      renderTabChip('rep', 'Report', Icons.MapPin)
     ),
 
     // Vehicle Inspection Card
@@ -251,31 +262,42 @@ function PAO() {
           'div',
           { className: 'kp' },
           [
-            ['Hotspots', filteredDemand.length],
-            ['Incidents', incidentCount],
-            ['Units operating', operatingVehicles.length],
+            ['Hotspots', filteredDemand.length, Icons.Users],
+            ['Incidents', incidentCount, Icons.AlertTriangle],
+            ['Operating', operatingVehicles.length, Icons.Bus],
             [
-              'Heavy roads',
+              'Congested',
               allFilteredTraffic.filter((t) => t.level === 'Heavy').length,
+              Icons.Clock,
             ],
-          ].map(([label, count]) =>
-            h('div', { key: label }, h('b', null, count), label)
+          ].map(([label, count, icon]) =>
+            h(
+              'div',
+              { key: label },
+              h(
+                'div',
+                { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' } },
+                h('b', null, count),
+                icon && h(icon, { size: 15, color: 'var(--brand-500)' })
+              ),
+              h('span', null, label)
+            )
           )
         ),
         h(
           'div',
           { className: 'c' },
-          h('h3', null, 'Situation summary'),
+          h('h3', null, 'Terminal Situation Summary'),
           h(
             'div',
-            null,
+            { style: { fontSize: 13, lineHeight: 1.5, color: 'var(--tx-primary)' } },
             (topDemandSpot
-              ? `${topDemandSpot.level} simulated demand at ${topDemandSpot.loc} (${topDemandSpot.count} waiting). `
-              : 'No demand reports. ') +
+              ? `${topDemandSpot.level} passenger demand queue at ${topDemandSpot.loc} with approx. ${topDemandSpot.count} waiting. `
+              : 'No crowd congestion hotspots detected. ') +
               (heavyTrafficRoad
-                ? `Heavy traffic on ${heavyTrafficRoad.road}. `
-                : 'No heavy traffic reported. ') +
-              `${operatingVehicles.length} unit(s) operating with fresh data.`
+                ? `Heavy road traffic along ${heavyTrafficRoad.road}. `
+                : 'No severe road slowdowns reported. ') +
+              `${operatingVehicles.length} vehicle unit(s) reporting live on this corridor.`
           ),
           h(CommNote)
         ),
@@ -283,31 +305,39 @@ function PAO() {
         h(
           'div',
           { className: 'c' },
-          h('h3', null, 'Recent observations'),
+          h('h3', null, 'Recent Ground Observations'),
           state.obs.length
             ? state.obs.slice(0, 5).map((obs) =>
                 h(
                   'div',
-                  { key: obs.id, style: { marginBottom: 6 } },
+                  {
+                    key: obs.id,
+                    style: {
+                      marginBottom: 8,
+                      padding: '8px 10px',
+                      background: 'var(--surface-subtle)',
+                      borderRadius: 'var(--radius-sm)',
+                    },
+                  },
                   h(
                     'div',
-                    { className: 'row' },
-                    h(Badge, { c: getLevelColorClass(obs.sev) }, obs.sev),
-                    h('b', null, obs.type)
+                    { className: 'row', style: { justifyContent: 'space-between' } },
+                    h('b', { style: { color: 'var(--tx-primary)' } }, obs.type),
+                    h(Badge, { c: getLevelColorClass(obs.sev) }, obs.sev)
                   ),
                   h(
                     'div',
-                    { className: 'mu' },
-                    `${obs.loc} · ${formatTimeAgo(obs.at)} · Manually reported`
+                    { className: 'mu', style: { margin: '2px 0 4px' } },
+                    `${obs.loc} · ${formatTimeAgo(obs.at)} · Field Officer`
                   ),
-                  h('div', null, obs.desc)
+                  h('div', { style: { fontSize: 12.5 } }, obs.desc)
                 )
               )
-            : h('div', { className: 'mu' }, 'No observations yet.')
+            : h('div', { className: 'mu' }, 'No field observations submitted yet.')
         )
       ),
 
-    // Tab 2: Demand Hotspots
+    // Tab 2: Passenger Queues & Demand Hotspots
     activeTab === 'dem' &&
       h(
         React.Fragment,
@@ -328,23 +358,23 @@ function PAO() {
                   'div',
                   { className: 'row' },
                   h(Badge, { c: getLevelColorClass(spot.level) }, spot.level),
-                  h('b', { style: { flex: 1 } }, spot.loc),
-                  h('span', null, `${spot.count} waiting`)
+                  h('b', { style: { flex: 1, color: 'var(--tx-primary)' } }, spot.loc),
+                  h('span', { style: { fontWeight: 700, color: 'var(--brand-700)' } }, `${spot.count} waiting`)
                 ),
                 renderDemandBar(spot.count),
                 h(
                   'div',
-                  { className: 'mu', style: { marginTop: 4 } },
-                  `${getRouteById(state, spot.routeId)?.name || '—'} · ${nearbyOperatingUnits} unit(s) on route · ${formatTimeAgo(
+                  { className: 'mu', style: { marginTop: 6 } },
+                  `${getRouteById(state, spot.routeId)?.name || '—'} · ${nearbyOperatingUnits} unit(s) on route · Updated ${formatTimeAgo(
                     spot.at
-                  )} · ${spot.src}`
+                  )}`
                 )
               );
             })
-          : h('div', { className: 'c mu' }, 'No hotspots for this selection.')
+          : h('div', { className: 'c mu' }, 'No queue hotspots for this selection.')
       ),
 
-    // Tab 3: Road Traffic
+    // Tab 3: Traffic Conditions
     activeTab === 'tra' &&
       h(
         React.Fragment,
@@ -355,12 +385,13 @@ function PAO() {
             value: trafficSeverityFilter,
             onChange: (e) => setTrafficSeverityFilter(e.target.value),
             'aria-label': 'Severity',
+            style: { fontWeight: 600 },
           },
           ['all', 'Light', 'Moderate', 'Heavy', 'Unknown'].map((level) =>
             h(
               'option',
               { key: level, value: level },
-              level === 'all' ? 'All levels' : level
+              level === 'all' ? 'All Severity Levels' : `${level} Traffic`
             )
           )
         ),
@@ -371,85 +402,108 @@ function PAO() {
                 { key: traffic.id, className: 'c' },
                 h(
                   'div',
-                  { className: 'row' },
-                  h(Badge, { c: getLevelColorClass(traffic.level) }, traffic.level),
-                  h('b', null, traffic.road)
+                  { className: 'row', style: { justifyContent: 'space-between' } },
+                  h('b', { style: { color: 'var(--tx-primary)' } }, traffic.road),
+                  h(Badge, { c: getLevelColorClass(traffic.level) }, traffic.level)
                 ),
                 h(
                   'div',
-                  { className: 'mu' },
+                  { className: 'mu', style: { marginTop: 4 } },
                   `${getRouteById(state, traffic.routeId)?.name || ''} · Incident: ${
                     traffic.inc
-                  } · ${formatTimeAgo(traffic.at)} · ${traffic.src}`
+                  } · Updated ${formatTimeAgo(traffic.at)}`
                 )
               )
             )
-          : h('div', { className: 'c mu' }, 'No traffic reports match.')
+          : h('div', { className: 'c mu' }, 'No traffic slowdowns match.')
       ),
 
-    // Tab 4: Report Observation
+    // Tab 4: Report Incident Form
     activeTab === 'rep' &&
       h(
         'div',
         { className: 'c' },
-        h('h3', null, 'Report an observation'),
+        h('h3', null, 'Report Field Incident'),
         h(
           'div',
-          { className: 'row' },
+          { style: { display: 'grid', gap: 10 } },
           h(
-            'select',
-            {
-              value: reportForm.type,
-              onChange: (e) =>
-                setReportForm({ ...reportForm, type: e.target.value }),
-              'aria-label': 'Type',
-            },
-            [
-              'Passenger Congestion',
-              'Traffic Congestion',
-              'Road Incident',
-              'Jeepney Shortage',
-              'Other',
-            ].map((type) => h('option', { key: type }, type))
-          ),
-          h(
-            'select',
-            {
-              value: reportForm.loc,
-              onChange: (e) =>
-                setReportForm({ ...reportForm, loc: e.target.value }),
-              'aria-label': 'Location',
-            },
-            h('option', { value: '' }, 'Select location'),
-            uniqueLocations.map((loc) => h('option', { key: loc }, loc))
-          ),
-          h(
-            'select',
-            {
-              value: reportForm.sev,
-              onChange: (e) =>
-                setReportForm({ ...reportForm, sev: e.target.value }),
-              'aria-label': 'Severity',
-            },
-            ['Low', 'Moderate', 'High'].map((sev) =>
-              h('option', { key: sev }, sev)
+            'div',
+            { className: 'row' },
+            h(
+              'select',
+              {
+                value: reportForm.type,
+                onChange: (e) =>
+                  setReportForm({ ...reportForm, type: e.target.value }),
+                'aria-label': 'Type',
+                style: { flex: 1 },
+              },
+              [
+                'Passenger Congestion',
+                'Traffic Congestion',
+                'Road Incident',
+                'Jeepney Shortage',
+                'Other',
+              ].map((type) => h('option', { key: type }, type))
+            ),
+            h(
+              'select',
+              {
+                value: reportForm.loc,
+                onChange: (e) =>
+                  setReportForm({ ...reportForm, loc: e.target.value }),
+                'aria-label': 'Location',
+                style: { flex: 1 },
+              },
+              h('option', { value: '' }, 'Select Location'),
+              uniqueLocations.map((loc) => h('option', { key: loc }, loc))
+            ),
+            h(
+              'select',
+              {
+                value: reportForm.sev,
+                onChange: (e) =>
+                  setReportForm({ ...reportForm, sev: e.target.value }),
+                'aria-label': 'Severity',
+                style: { width: 110 },
+              },
+              ['Low', 'Moderate', 'High'].map((sev) =>
+                h('option', { key: sev }, `${sev} Severity`)
+              )
             )
-          )
-        ),
-        h('textarea', {
-          rows: 3,
-          style: { width: '100%', margin: '6px 0' },
-          placeholder: 'Short description',
-          value: reportForm.desc,
-          onChange: (e) =>
-            setReportForm({ ...reportForm, desc: e.target.value }),
-        }),
-        h('button', { className: 'p', onClick: handleSaveObservation }, 'Save observation'),
-        formErrorMessage &&
-          h('div', { style: { color: 'var(--er)' } }, formErrorMessage),
-        formSuccessMessage &&
-          !formErrorMessage &&
-          h('div', { style: { color: 'var(--ok)' } }, formSuccessMessage)
+          ),
+          h('textarea', {
+            rows: 3,
+            style: { width: '100%', padding: '10px 12px' },
+            placeholder: 'Provide concise details about the crowd congestion, road blockage, or unit delay…',
+            value: reportForm.desc,
+            onChange: (e) =>
+              setReportForm({ ...reportForm, desc: e.target.value }),
+          }),
+          h(
+            'button',
+            {
+              className: 'p',
+              style: { padding: '10px 14px' },
+              onClick: handleSaveObservation,
+            },
+            'Submit Field Report'
+          ),
+          formErrorMessage &&
+            h(
+              'div',
+              { style: { color: 'var(--er-primary)', fontWeight: 600, fontSize: 12 } },
+              formErrorMessage
+            ),
+          formSuccessMessage &&
+            !formErrorMessage &&
+            h(
+              'div',
+              { style: { color: 'var(--ok-tx)', fontWeight: 600, fontSize: 12 } },
+              formSuccessMessage
+            )
+        )
       ),
 
     // Tab 5: Map Layers
@@ -465,7 +519,7 @@ function PAO() {
         ].map(([key, label]) =>
           h(
             'label',
-            { key, className: 'row' },
+            { key, className: 'row', style: { padding: '6px 0', cursor: 'pointer' } },
             h('input', {
               type: 'checkbox',
               checked: layerVisibility[key],

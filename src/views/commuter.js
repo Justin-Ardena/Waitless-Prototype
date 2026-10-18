@@ -1,15 +1,15 @@
 /**
- * WaitLess Prototype - Commuter Application View
+ * WaitLess Prototype - Modern Commuter Application View
  *
  * Implements:
- * - Commuter onboarding & demo login
- * - Animated welcome splash screen with Modernized Jeepney graphic
+ * - Commuter onboarding & seamless demo login
+ * - High-end animated welcome splash screen with Modernized Jeepney graphic
  * - Route search, interactive schematic route map, and layer controls
  * - Draggable bottom sheet with Trip Planner, Live Jeepneys list, Fare guide, and approaching-vehicle alerts
  */
 
 /**
- * Animated Welcome Splash Screen
+ * Animated Welcome Splash Screen with Modernized Jeepney
  */
 function SplashWelcome(name, onSkip) {
   return h(
@@ -21,16 +21,16 @@ function SplashWelcome(name, onSkip) {
       'div',
       { className: 'sp2c' },
       h('div', { className: 'sp2logo' }, 'W'),
-      h('div', { className: 'sp2hi' }, 'Welcome,'),
+      h('div', { className: 'sp2hi' }, 'Welcome aboard,'),
       h('div', { className: 'sp2nm' }, name),
       h(
         'div',
         { className: 'sp2msg' },
-        h('span', null, 'Finding your routes…'),
-        h('span', null, 'Checking nearby jeepneys…'),
-        h('span', null, 'Loading traffic heatmap…')
+        h('span', null, 'Finding optimal routes…'),
+        h('span', null, 'Checking nearby modernized jeepneys…'),
+        h('span', null, 'Loading live traffic conditions…')
       ),
-      h('div', { className: 'lbar', style: { width: 220 } }, h('i'))
+      h('div', { className: 'lbar' }, h('i'))
     ),
     h(
       'div',
@@ -40,18 +40,32 @@ function SplashWelcome(name, onSkip) {
         { className: 'bus' },
         h(
           'svg',
-          { viewBox: '0 0 64 32', width: 64, 'aria-hidden': 'true' },
-          h('rect', { x: 2, y: 6, width: 58, height: 18, rx: 6, fill: '#2563eb' }),
-          h('rect', { x: 8, y: 10, width: 12, height: 7, rx: 2, fill: '#dbeafe' }),
-          h('rect', { x: 24, y: 10, width: 12, height: 7, rx: 2, fill: '#dbeafe' }),
-          h('rect', { x: 40, y: 10, width: 14, height: 7, rx: 2, fill: '#dbeafe' }),
-          h('rect', { x: 2, y: 18, width: 58, height: 3, fill: '#1d4ed8' }),
-          h('circle', { cx: 16, cy: 25, r: 5, fill: '#0f1b33' }),
-          h('circle', { cx: 48, cy: 25, r: 5, fill: '#0f1b33' })
+          { viewBox: '0 0 68 34', width: 68, 'aria-hidden': 'true' },
+          // Jeepney Chassis
+          h('rect', { x: 2, y: 5, width: 62, height: 20, rx: 6, fill: '#2563eb' }),
+          // Roof Cap
+          h('path', { d: 'M4 5 Q34 2 62 5', stroke: '#38bdf8', strokeWidth: 1.5, fill: 'none' }),
+          // Windows
+          h('rect', { x: 8, y: 9, width: 12, height: 8, rx: 2, fill: '#e0f2fe' }),
+          h('rect', { x: 23, y: 9, width: 13, height: 8, rx: 2, fill: '#e0f2fe' }),
+          h('rect', { x: 39, y: 9, width: 14, height: 8, rx: 2, fill: '#e0f2fe' }),
+          // Racing Stripe
+          h('rect', { x: 2, y: 19, width: 62, height: 3, fill: '#1d4ed8' }),
+          // Headlight
+          h('circle', { cx: 62, cy: 17, r: 2, fill: '#fef08a' }),
+          // Wheels
+          h('circle', { cx: 16, cy: 26, r: 5.5, fill: '#0f172a' }),
+          h('circle', { cx: 16, cy: 26, r: 2.5, fill: '#94a3b8' }),
+          h('circle', { cx: 50, cy: 26, r: 5.5, fill: '#0f172a' }),
+          h('circle', { cx: 50, cy: 26, r: 2.5, fill: '#94a3b8' })
         )
       )
     ),
-    h('button', { className: 'sp2skip', onClick: onSkip }, 'Skip')
+    h(
+      'button',
+      { className: 'sp2skip', onClick: onSkip },
+      'Skip animation'
+    )
   );
 }
 const SplashNew = SplashWelcome; // Backward-compatible alias
@@ -88,9 +102,34 @@ function Commuter() {
         { className: 'in', style: { paddingBottom: 0 } },
         h(
           'div',
-          { className: 'c row' },
-          h('span', { style: { flex: 1 } }, 'Hi, ', h('b', null, state.cuser)),
-          h('button', { onClick: () => handleLogin(null) }, 'Log out')
+          {
+            className: 'c row',
+            style: {
+              padding: '10px 14px',
+              borderRadius: 'var(--radius-md)',
+              background: 'var(--surface)',
+            },
+          },
+          h(
+            'span',
+            { style: { flex: 1, display: 'flex', alignItems: 'center', gap: 6 } },
+            h(Icons.Users, { size: 16, color: 'var(--brand-600)' }),
+            'Hi, ',
+            h('b', { style: { color: 'var(--brand-900)' } }, state.cuser)
+          ),
+          h(
+            'button',
+            {
+              onClick: () => handleLogin(null),
+              style: {
+                padding: '4px 10px',
+                fontSize: 11.5,
+                borderRadius: 'var(--radius-full)',
+                color: 'var(--tx-muted)',
+              },
+            },
+            'Log out'
+          )
         )
       ),
       h(CommuterApp)
@@ -100,53 +139,79 @@ function Commuter() {
   // 3. Login / Onboarding screen
   return h(
     'div',
-    { className: 'in', style: { textAlign: 'center', paddingTop: 30 } },
+    { className: 'in', style: { textAlign: 'center', paddingTop: 28 } },
+    // Glowing Emblem
     h(
       'div',
       {
         className: 'logo',
         style: {
-          width: 68,
-          height: 68,
-          fontSize: 32,
-          borderRadius: 20,
-          margin: '0 auto',
+          width: 72,
+          height: 72,
+          fontSize: 36,
+          borderRadius: 22,
+          margin: '0 auto 12px',
+          boxShadow: '0 12px 30px rgba(37, 99, 235, 0.35)',
         },
       },
       'W'
     ),
     h(
       'h1',
-      { style: { margin: '4px 0 0', fontSize: 26, color: '#1e3a8a' } },
+      {
+        style: {
+          margin: '0 0 4px',
+          fontSize: 28,
+          fontWeight: 800,
+          letterSpacing: '-0.03em',
+          color: 'var(--brand-900)',
+        },
+      },
       'WaitLess'
     ),
     h(
       'div',
-      { className: 'mu', style: { fontSize: 14 } },
+      { className: 'mu', style: { fontSize: 13.5, marginBottom: 16 } },
       'Your Ride, Closer Than You Think.'
     ),
+    // Login Card
     h(
       'div',
-      { className: 'c', style: { textAlign: 'left', marginTop: 10 } },
-      h('h3', null, 'Log in to continue'),
+      { className: 'c', style: { textAlign: 'left', padding: '18px 20px' } },
+      h(
+        'h3',
+        { style: { fontSize: 15, marginBottom: 12 } },
+        'Log in to continue'
+      ),
       h('input', {
-        placeholder: 'Your name',
+        placeholder: 'Enter your name',
         value: nameInput,
         'aria-label': 'Your name',
-        style: { width: '100%' },
+        style: { width: '100%', padding: '10px 14px', fontSize: 14 },
         onChange: (e) => setNameInput(e.target.value),
         onKeyDown: (e) => {
           if (e.key === 'Enter') document.getElementById('wl-login')?.click();
         },
       }),
       errorMessage &&
-        h('div', { style: { color: 'var(--er)', marginTop: 4 } }, errorMessage),
+        h(
+          'div',
+          {
+            style: {
+              color: 'var(--er-primary)',
+              fontSize: 12,
+              marginTop: 6,
+              fontWeight: 600,
+            },
+          },
+          errorMessage
+        ),
       h(
         'button',
         {
           id: 'wl-login',
           className: 'p',
-          style: { width: '100%', marginTop: 8, padding: '9px' },
+          style: { width: '100%', marginTop: 12, padding: '10px' },
           onClick: () => {
             if (nameInput.trim().length < 2) {
               return setErrorMessage('Enter your name (at least 2 characters).');
@@ -155,29 +220,35 @@ function Commuter() {
             handleLogin(nameInput.trim());
           },
         },
-        'Log in'
+        'Continue to App'
       ),
       h(
         'button',
         {
-          style: { width: '100%', marginTop: 6, padding: '9px' },
-          onClick: () => handleLogin('Guest'),
+          style: {
+            width: '100%',
+            marginTop: 8,
+            padding: '9px',
+            background: 'var(--surface-subtle)',
+          },
+          onClick: () => handleLogin('Guest Passenger'),
         },
-        'Continue as guest'
+        'Explore as Guest'
       )
     ),
+    // Highlights pills
     h(
       'div',
-      { className: 'row', style: { justifyContent: 'center' } },
-      h(Badge, { c: 'pr' }, 'Find routes'),
-      h(Badge, { c: 'pr' }, 'Simulated ETA'),
-      h(Badge, { c: 'pr' }, 'Seat info'),
-      h(Badge, { c: 'pr' }, 'Traffic heatmap')
+      { className: 'row', style: { justifyContent: 'center', marginTop: 8 } },
+      h(Badge, { c: 'pr', icon: Icons.MapPin }, 'Find routes'),
+      h(Badge, { c: 'pr', icon: Icons.Clock }, 'Traffic ETAs'),
+      h(Badge, { c: 'pr', icon: Icons.Bus }, 'Seat info'),
+      h(Badge, { c: 'pr', icon: Icons.Bell }, 'Approaching alerts')
     ),
     h(
       'div',
-      { className: 'mu' },
-      'Demo login: no password or account needed. All data is simulated and stored only in this browser.'
+      { className: 'mu', style: { marginTop: 10, fontSize: 11.5 } },
+      'Demo environment: No password or signup required. Simulated transit data is saved locally in this browser.'
     )
   );
 }
@@ -271,7 +342,7 @@ function CommuterApp() {
     .filter((item) => item.e)
     .sort((a, b) => a.e.adj - b.e.adj)[0];
 
-  const renderTabChip = (key, label) =>
+  const renderTabChip = (key, label, icon) =>
     h(
       'button',
       {
@@ -279,10 +350,11 @@ function CommuterApp() {
         className: activeTab === key ? 'p' : '',
         onClick: () => setActiveTab(key),
       },
+      icon && h(icon, { size: 13 }),
       label
     );
 
-  const SNAP_POINTS = [0.14, 0.42, 0.8];
+  const SNAP_POINTS = [0.14, 0.42, 0.82];
 
   return h(
     'div',
@@ -325,16 +397,26 @@ function CommuterApp() {
       })
     ),
 
-    // 2. Top Route Search Bar & Route Carousel
+    // 2. Top Floating Search Bar & Route Carousel
     h(
       'div',
       { className: 'atop' },
-      h('input', {
-        placeholder: 'Search routes',
-        value: searchQuery,
-        onChange: (e) => setSearchQuery(e.target.value),
-        'aria-label': 'Search routes',
-      }),
+      h(
+        'div',
+        { style: { position: 'relative', display: 'flex', alignItems: 'center' } },
+        h(Icons.Search, {
+          size: 15,
+          color: 'var(--tx-muted)',
+          style: { position: 'absolute', left: 14, pointerEvents: 'none' },
+        }),
+        h('input', {
+          placeholder: 'Search jeepney routes…',
+          value: searchQuery,
+          onChange: (e) => setSearchQuery(e.target.value),
+          'aria-label': 'Search routes',
+          style: { width: '100%', paddingLeft: 38 },
+        })
+      ),
       h(
         'div',
         { className: 'chips', ...dragScroll },
@@ -367,8 +449,9 @@ function CommuterApp() {
         state.toasts.slice(0, 1).map((toast) =>
           h(
             'div',
-            { key: toast.id, className: 'toast row' },
-            h('span', { style: { flex: 1 } }, `🔔 ${toast.msg}`),
+            { key: toast.id, className: 'toast' },
+            h(Icons.Bell, { size: 16 }),
+            h('span', { style: { flex: 1, fontWeight: 600 } }, toast.msg),
             h(
               'button',
               {
@@ -378,7 +461,7 @@ function CommuterApp() {
                     toasts: prev.toasts.filter((t) => t.id !== toast.id),
                   })),
               },
-              'OK'
+              'Dismiss'
             )
           )
         )
@@ -391,7 +474,7 @@ function CommuterApp() {
         className: 'sheet',
         style: {
           height: `${snapRatio * 100}%`,
-          transition: isDragging ? 'none' : 'height .25s ease',
+          transition: isDragging ? 'none' : 'height 0.28s cubic-bezier(0.16, 1, 0.3, 1)',
         },
       },
       // Grab Handle
@@ -404,7 +487,7 @@ function CommuterApp() {
           'aria-label': 'Drag to resize panel',
           'aria-valuenow': Math.round(snapRatio * 100),
           onKeyDown: (e) => {
-            if (e.key === 'ArrowUp') setSnapRatio(Math.min(0.8, snapRatio + 0.2));
+            if (e.key === 'ArrowUp') setSnapRatio(Math.min(0.82, snapRatio + 0.2));
             if (e.key === 'ArrowDown') setSnapRatio(Math.max(0.14, snapRatio - 0.2));
           },
           onPointerDown: (e) => {
@@ -454,33 +537,34 @@ function CommuterApp() {
       h(
         'div',
         { className: 'sbody' },
+        // Route Header
         h(
           'div',
-          { className: 'row', style: { justifyContent: 'space-between' } },
+          { className: 'row', style: { justifyContent: 'space-between', alignItems: 'flex-start' } },
           h(
             'div',
             null,
-            h('b', { style: { fontSize: 17 } }, activeRoute.name),
+            h('b', { style: { fontSize: 18, color: 'var(--tx-primary)' } }, activeRoute.name),
             h(
               'div',
-              { className: 'mu' },
-              `${routeVehicles.length} units · ${
+              { className: 'mu', style: { marginTop: 2 } },
+              `${routeVehicles.length} operating units · ${
                 bestVehicleArrival
-                  ? `Next unit in ${formatMinutes(bestVehicleArrival.e.adj)}`
+                  ? `Next arrival in ${formatMinutes(bestVehicleArrival.e.adj)}`
                   : 'ETA unavailable'
               }`
             )
           ),
-          h(Badge, { c: 'pr' }, 'Simulated')
+          h(Badge, { c: 'pr' }, 'LIVE TRACKING')
         ),
 
         // Navigation Tabs: Trip | Jeepneys | Fares
         h(
           'div',
           { className: 'seg' },
-          renderTabChip('trip', 'Trip'),
-          renderTabChip('vehicles', 'Jeepneys'),
-          renderTabChip('fares', 'Fares')
+          renderTabChip('trip', 'Trip Planner', Icons.MapPin),
+          renderTabChip('vehicles', 'Jeepneys', Icons.Bus),
+          renderTabChip('fares', 'Fare Guide', Icons.Clock)
         ),
 
         // Tab Content: Trip
@@ -497,15 +581,27 @@ function CommuterApp() {
             }),
             h(
               'div',
-              { className: 'c mu' },
-              'Tap the map to move your pin. ',
+              {
+                className: 'c mu',
+                style: {
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                },
+              },
+              h('span', null, 'Tap anywhere on the map to relocate your pin.'),
               h(
                 'button',
                 {
                   onClick: () =>
                     updateStoreState((prev) => ({ ...prev, cloc: null })),
+                  style: {
+                    padding: '3px 8px',
+                    fontSize: 11,
+                    borderRadius: 'var(--radius-full)',
+                  },
                 },
-                'Reset pin'
+                'Reset Pin'
               )
             )
           ),
@@ -520,16 +616,17 @@ function CommuterApp() {
               { className: 'c' },
               h(
                 'div',
-                { className: 'row' },
+                { className: 'row', style: { justifyContent: 'space-between' } },
                 h(
                   'select',
                   {
                     value: Math.min(originStopIndex, activeRoute.pick.length - 1),
                     onChange: (e) => setOriginStopIndex(+e.target.value),
                     'aria-label': 'Pickup point',
+                    style: { flex: 1 },
                   },
                   activeRoute.pick.map((stop, idx) =>
-                    h('option', { key: idx, value: idx }, stop.n)
+                    h('option', { key: idx, value: idx }, `At stop: ${stop.n}`)
                   )
                 ),
                 h(
@@ -560,21 +657,36 @@ function CommuterApp() {
                       }));
                     },
                   },
-                  'Alert me when near'
+                  h(Icons.Bell, { size: 13 }),
+                  'Set Alert'
                 )
               ),
               state.watch.map((watchItem, idx) => {
                 const targetVehicle = state.vehicles.find((v) => v.id === watchItem.vid);
                 return h(
                   'div',
-                  { key: idx, className: 'row mu' },
-                  `Alert: ${targetVehicle?.unit || 'Unit'} → ${watchItem.pn}${
-                    watchItem.fired ? ' (sent)' : ' (waiting)'
-                  }`,
+                  {
+                    key: idx,
+                    className: 'row mu',
+                    style: {
+                      marginTop: 8,
+                      padding: '6px 10px',
+                      background: 'var(--surface-subtle)',
+                      borderRadius: 'var(--radius-sm)',
+                    },
+                  },
+                  h(
+                    'span',
+                    { style: { flex: 1, color: 'var(--tx-primary)', fontWeight: 600 } },
+                    `🔔 Alert: ${targetVehicle?.unit || 'Unit'} → ${watchItem.pn}${
+                      watchItem.fired ? ' (Triggered)' : ' (Waiting proximity)'
+                    }`
+                  ),
                   h(
                     'button',
                     {
                       className: 'x',
+                      style: { padding: '2px 8px', fontSize: 11 },
                       onClick: () =>
                         updateStoreState((prev) => ({
                           ...prev,
@@ -599,7 +711,7 @@ function CommuterApp() {
               : h(
                   'div',
                   { className: 'c mu' },
-                  'No vehicles are assigned to this route yet.'
+                  'No vehicles are currently assigned to this route.'
                 )
           ),
 
@@ -618,7 +730,7 @@ function CommuterApp() {
             ].map(([key, label]) =>
               h(
                 'label',
-                { key, className: 'row' },
+                { key, className: 'row', style: { padding: '6px 0', cursor: 'pointer' } },
                 h('input', {
                   type: 'checkbox',
                   checked: layerVisibility[key],

@@ -1,11 +1,11 @@
 /**
- * WaitLess Prototype - Application Shell & Demo Controller
+ * WaitLess Prototype - Modern Application Shell & Demo Controller
  *
  * Implements:
+ * - High-end header with live telemetry heartbeat indicator
+ * - Simulation Scenario Cockpit with one-tap preset triggers
  * - Multi-view layout switcher (All Views, Commuter, Cooperative, PAO)
- * - Device frames toggle (realistic mobile and desktop chassis vs clean grid)
- * - Interactive scenario demo controls (traffic delays, breakdown, link outage, demand surge)
- * - Global header with system telemetry indicator
+ * - Device frames toggle (Apple-grade iPhone & Studio Display chassis vs clean grid)
  */
 
 // Display view configurations: [key, label, activeViewsList]
@@ -35,130 +35,185 @@ const VIEW_COMPONENTS = {
 const COMP = VIEW_COMPONENTS; // Backward-compatible alias
 
 /**
- * Interactive Demo Simulation Controls
+ * Modern Simulation Scenario Cockpit
  */
 function DemoControls() {
   const state = useStoreState();
 
-  const renderActionButton = (label, actionFn) =>
-    h('button', { onClick: () => updateStoreState(actionFn) }, label);
+  const renderActionButton = (label, icon, actionFn, isDanger = false) =>
+    h(
+      'button',
+      {
+        className: isDanger ? 'x' : '',
+        onClick: () => updateStoreState(actionFn),
+      },
+      icon && h(icon, { size: 12 }),
+      label
+    );
 
   return h(
     'div',
-    { className: 'c', style: { margin: '0 12px' } },
+    { className: 'demo-cockpit' },
     h(
       'div',
-      { className: 'row' },
-      h('b', null, 'Demo controls'),
+      { className: 'demo-cockpit-header' },
+      h(
+        'div',
+        { className: 'demo-cockpit-title' },
+        h(Icons.Sliders, { size: 15, color: 'var(--brand-600)' }),
+        'Simulation Cockpit'
+      ),
+      h(
+        'span',
+        { className: 'tag' },
+        `GPS Pings: ${state.sim ? '1.5s Active' : 'Paused'}`
+      ),
+      h(
+        'span',
+        { className: 'tag', style: { marginLeft: 'auto' } },
+        state.link ? '📡 LoRaWAN: Online' : '📡 LoRaWAN: Disconnected'
+      )
+    ),
 
-      // 1. Pause / Resume movement
+    // Quick Scenario Triggers
+    h(
+      'div',
+      { className: 'demo-cockpit-pills' },
+      // 1. Play / Pause
       renderActionButton(
-        state.sim ? 'Pause movement' : 'Start movement',
+        state.sim ? 'Pause Fleet Movement' : 'Resume Movement',
+        state.sim ? Icons.Pause : Icons.Play,
         (prev) => ({ ...prev, sim: !prev.sim })
       ),
 
-      // 2. Trigger Vehicle Breakdown
-      renderActionButton('Vehicle out of service', (prev) => {
-        const operatingVehicle = prev.vehicles.find(
-          (v) => v.status === 'On Route'
-        );
-        if (!operatingVehicle) return prev;
+      // 2. Trigger Breakdown
+      renderActionButton(
+        'Simulate Unit Breakdown',
+        Icons.AlertTriangle,
+        (prev) => {
+          const operatingVehicle = prev.vehicles.find(
+            (v) => v.status === 'On Route'
+          );
+          if (!operatingVehicle) return prev;
 
-        return {
+          return {
+            ...prev,
+            vehicles: prev.vehicles.map((v) =>
+              v.id === operatingVehicle.id
+                ? { ...v, status: 'Out of Service' }
+                : v
+            ),
+            alerts: [
+              {
+                id: 'a' + getCurrentTimestamp(),
+                type: 'Out of Service',
+                vehicleId: operatingVehicle.id,
+                msg: `${operatingVehicle.unit} reported an unscheduled mechanical breakdown.`,
+                sev: 'High',
+                at: getCurrentTimestamp(),
+                status: 'Open',
+              },
+              ...prev.alerts,
+            ],
+          };
+        }
+      ),
+
+      // 3. Demand Surge
+      renderActionButton(
+        'Trigger Passenger Demand Surge',
+        Icons.Users,
+        (prev) => ({
           ...prev,
-          vehicles: prev.vehicles.map((v) =>
-            v.id === operatingVehicle.id
-              ? { ...v, status: 'Out of Service' }
-              : v
+          demand: prev.demand.map((d, index) =>
+            index === 1
+              ? { ...d, count: d.count + 20, level: 'High', at: getCurrentTimestamp() }
+              : d
           ),
           alerts: [
             {
               id: 'a' + getCurrentTimestamp(),
-              type: 'Out of Service',
-              vehicleId: operatingVehicle.id,
-              msg: `${operatingVehicle.unit} is Out of Service.`,
+              type: 'High Demand',
+              msg: 'Critical passenger crowd surge at SM City pickup terminal.',
               sev: 'High',
               at: getCurrentTimestamp(),
               status: 'Open',
             },
             ...prev.alerts,
           ],
-        };
-      }),
+        })
+      ),
 
-      // 3. Trigger Passenger Demand Surge
-      renderActionButton('Raise demand', (prev) => ({
-        ...prev,
-        demand: prev.demand.map((d, index) =>
-          index === 1
-            ? { ...d, count: d.count + 20, level: 'High', at: getCurrentTimestamp() }
-            : d
-        ),
-        alerts: [
-          {
-            id: 'a' + getCurrentTimestamp(),
-            type: 'High Demand',
-            msg: 'High passenger demand at SM City pickup.',
-            sev: 'High',
-            at: getCurrentTimestamp(),
-            status: 'Open',
-          },
-          ...prev.alerts,
-        ],
-      })),
-
-      // 4. Trigger Heavy Traffic Congestion
-      renderActionButton('Heavy traffic', (prev) => ({
-        ...prev,
-        traffic: prev.traffic.map((t, index) =>
-          index === 0
-            ? { ...t, level: 'Heavy', at: getCurrentTimestamp(), src: 'Simulated' }
-            : t
-        ),
-      })),
-
-      // 5. Trigger Limited Seats
-      renderActionButton('Limited seats', (prev) => {
-        const operatingVehicle = prev.vehicles.find(
-          (v) => v.status === 'On Route'
-        );
-        if (!operatingVehicle) return prev;
-
-        return {
-          ...prev,
-          vehicles: prev.vehicles.map((v) =>
-            v.id === operatingVehicle.id
-              ? { ...v, avail: 3, seatSrc: 'Simulated' }
-              : v
-          ),
-        };
-      }),
-
-      // 6. Simulate LoRaWAN Signal Cut / Restore
+      // 4. Heavy Traffic Jam
       renderActionButton(
-        state.link ? 'Cut LoRaWAN link' : 'Restore link',
+        'Inject Heavy Traffic Delay',
+        Icons.Clock,
+        (prev) => ({
+          ...prev,
+          traffic: prev.traffic.map((t, index) =>
+            index === 0
+              ? { ...t, level: 'Heavy', at: getCurrentTimestamp(), src: 'Simulated' }
+              : t
+          ),
+        })
+      ),
+
+      // 5. Limited Seats Capacity
+      renderActionButton(
+        'Simulate Low Seat Capacity',
+        Icons.Bus,
+        (prev) => {
+          const operatingVehicle = prev.vehicles.find(
+            (v) => v.status === 'On Route'
+          );
+          if (!operatingVehicle) return prev;
+
+          return {
+            ...prev,
+            vehicles: prev.vehicles.map((v) =>
+              v.id === operatingVehicle.id
+                ? { ...v, avail: 2, seatSrc: 'Simulated' }
+                : v
+            ),
+          };
+        }
+      ),
+
+      // 6. Signal Link Disruption
+      renderActionButton(
+        state.link ? 'Disconnect LoRaWAN Link' : 'Restore LoRaWAN Link',
+        Icons.Signal,
         (prev) => ({ ...prev, link: !prev.link })
       ),
 
       // 7. Inject PAO Sample Observation
-      renderActionButton('PAO sample report', (prev) => ({
-        ...prev,
-        obs: [
-          {
-            id: 'o' + getCurrentTimestamp(),
-            type: 'Jeepney Shortage',
-            loc: 'Mandurriao',
-            sev: 'High',
-            desc: 'Few units arriving, long wait.',
-            at: getCurrentTimestamp(),
-          },
-          ...prev.obs,
-        ],
-      })),
+      renderActionButton(
+        'Inject PAO Field Observation',
+        Icons.MapPin,
+        (prev) => ({
+          ...prev,
+          obs: [
+            {
+              id: 'o' + getCurrentTimestamp(),
+              type: 'Jeepney Shortage',
+              loc: 'Mandurriao',
+              sev: 'High',
+              desc: 'Severe bottleneck at station, passenger queue exceeding terminal capacity.',
+              at: getCurrentTimestamp(),
+            },
+            ...prev.obs,
+          ],
+        })
+      ),
 
       // 8. Reset to Default Seed Data
-      renderActionButton('Reset demo data', (prev) =>
-        confirm('Reset all demo data?') ? createInitialSeedData() : prev
+      renderActionButton(
+        'Reset Demo Data',
+        Icons.Refresh,
+        (prev) =>
+          confirm('Reset all demo fleet, route, and traffic data?')
+            ? createInitialSeedData()
+            : prev
       ),
 
       // 9. Clear Local Storage
@@ -167,7 +222,7 @@ function DemoControls() {
         {
           className: 'x',
           onClick: () => {
-            if (confirm('Clear local data and start fresh?')) {
+            if (confirm('Clear local browser storage and reinitialize prototype?')) {
               try {
                 localStorage.removeItem(STORAGE_KEY);
               } catch (e) {}
@@ -178,13 +233,15 @@ function DemoControls() {
             }
           },
         },
-        'Clear local data'
+        h(Icons.Trash, { size: 12 }),
+        'Clear Storage'
       )
     ),
+
     h(
       'div',
       { className: 'mu' },
-      'Simulated flow: GPS device → LoRaWAN → gateway → network server → WaitLess → interfaces. No hardware is connected, data is not verified live information, and it is stored only in this browser.'
+      'Simulated IoT Telemetry Flow: Modernized Jeepney On-Board GPS Tracker → LoRaWAN / 4G Cellular → Gateway → WaitLess Core Server → Client Apps. All data is simulated client-side and saved in browser storage.'
     )
   );
 }
@@ -205,7 +262,7 @@ function App() {
   return h(
     'div',
     null,
-    // Header Bar
+    // Modern Frosted Header
     h(
       'header',
       null,
@@ -214,25 +271,33 @@ function App() {
         'div',
         { className: 'brand' },
         h('b', null, 'WaitLess'),
-        h('small', null, 'Modernized Jeepney Info System')
+        h('small', null, 'Modernized Jeepney Telemetry & Passenger Info')
       ),
-      h('span', { className: 'tag d' }, 'DEMO MODE'),
-      h('span', { className: 'tag' }, 'LOCAL DATA'),
+      h('span', { className: 'tag d' }, 'PROTOTYPE DEMO'),
       h(
         'span',
         { className: 'tag' },
-        state.link ? 'Simulated link: connected' : 'Simulated link: down'
+        state.link ? '📡 LoRaWAN: Active' : '📡 LoRaWAN: Down'
       ),
       h('span', { className: 'sp' }),
 
-      // Device frame toggle
+      // Device frame toggle button
       h(
         'button',
         {
           onClick: () =>
             updateStoreState((prev) => ({ ...prev, phone: prev.phone === false })),
+          style: {
+            borderRadius: 'var(--radius-full)',
+            padding: '7px 14px',
+            fontSize: 12,
+            fontWeight: 600,
+          },
         },
-        `Device frames: ${hasDeviceFrames ? 'On' : 'Off'}`
+        hasDeviceFrames
+          ? h(Icons.Smartphone, { size: 14 })
+          : h(Icons.Monitor, { size: 14 }),
+        `Device Mockups: ${hasDeviceFrames ? 'On' : 'Flat Grid'}`
       ),
 
       // Reset layout button
@@ -241,8 +306,14 @@ function App() {
         {
           onClick: () =>
             updateStoreState((prev) => ({ ...prev, mode: 'all' })),
+          style: {
+            borderRadius: 'var(--radius-full)',
+            padding: '7px 14px',
+            fontSize: 12,
+            fontWeight: 600,
+          },
         },
-        'Reset Layout'
+        'Reset Views'
       ),
 
       // Display Views Dropdown Selector
@@ -252,10 +323,12 @@ function App() {
         h(
           'button',
           {
+            className: 'p',
             'aria-haspopup': 'menu',
             'aria-expanded': isDropdownOpen,
             onClick: () => setIsDropdownOpen(!isDropdownOpen),
             onKeyDown: (e) => e.key === 'Escape' && setIsDropdownOpen(false),
+            style: { borderRadius: 'var(--radius-full)', padding: '7px 16px' },
           },
           'Display Views ▾'
         ),
@@ -274,21 +347,27 @@ function App() {
                     setIsDropdownOpen(false);
                   },
                 },
-                `${modeKey === state.mode ? '✓ ' : '   '}${label}`
+                modeKey === state.mode ? `✓ ${label}` : `   ${label}`
               )
             )
           )
       )
     ),
 
-    // Subtitle Banner
+    // Subtitle Context Banner
     h(
       'div',
-      { className: 'mu', style: { padding: '6px 14px' } },
-      `Your Ride, Closer Than You Think. · Showing: ${currentMode[1]} · Simulated data stored in this browser only.`
+      { className: 'context-banner' },
+      h(
+        'span',
+        null,
+        'Your Ride, Closer Than You Think. · Displaying: ',
+        h('b', { style: { color: 'var(--brand-700)' } }, currentMode[1]),
+        ' · Telemetry and passenger state persisted in localStorage.'
+      )
     ),
 
-    // Scenario Demo Controls Panel
+    // Simulation Scenario Controls Panel
     h(DemoControls),
 
     // Multi-View Main Viewport Grid
@@ -300,7 +379,7 @@ function App() {
           ? {}
           : {
               gridTemplateColumns: `repeat(auto-fit, minmax(${
-                visibleViews.length > 2 ? '320px' : '360px'
+                visibleViews.length > 2 ? '340px' : '400px'
               }, 1fr))`,
             },
       },
@@ -314,6 +393,13 @@ function App() {
             : ' ph'
           : '';
         const wrapperClass = hasDeviceFrames && viewKey === 'o' ? 'devm' : '';
+
+        const iconComponent =
+          viewKey === 'c'
+            ? Icons.Smartphone
+            : viewKey === 'o'
+            ? Icons.Monitor
+            : Icons.MapPin;
 
         return h(
           'div',
@@ -333,7 +419,7 @@ function App() {
             h(
               'h2',
               null,
-              h('span', { className: 'ico' }, { c: '📱', o: '🖥️', p: '📍' }[viewKey]),
+              h('span', { className: 'ico' }, h(iconComponent, { size: 16 })),
               h(
                 'span',
                 null,
@@ -342,9 +428,9 @@ function App() {
                   'small',
                   null,
                   {
-                    c: 'For passengers',
-                    o: 'Fleet operations',
-                    p: 'Field monitoring',
+                    c: 'Commuter Mobile Passenger App',
+                    o: 'Cooperative Operations Center',
+                    p: 'PAO Field Terminal Monitor',
                   }[viewKey]
                 )
               ),

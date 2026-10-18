@@ -1,15 +1,14 @@
 /**
- * WaitLess Prototype - Cooperative Dashboard View
+ * WaitLess Prototype - Modern Cooperative Dashboard View
  *
  * Implements:
- * - Fleet operations overview & KPI counters
- * - Live vehicle tracking and interactive route map
- * - Vehicle fleet management table (status, route assignment, seats, breakdown trigger)
+ * - Fleet operations command center with executive KPI tiles
+ * - Real-time vehicle telemetry fleet table with visual seat occupancy meters
+ * - Interactive fleet map with layer toggles
  * - Route management (create, rename, activate/deactivate)
  * - Passenger demand hotspots & automated dispatch advisories
  * - Fare settings configuration
  * - Operational alerts management (acknowledge/resolve workflow)
- * - PAO field incident reports feed
  * - Multi-monitor split screen support (dual-screen mode & popout window)
  */
 
@@ -45,15 +44,20 @@ function CoSplit() {
     { className: 'c' },
     h(
       'div',
-      { className: 'row' },
-      h('b', { style: { flex: 1, minWidth: 110 } }, 'Screen layout'),
+      { className: 'row', style: { justifyContent: 'space-between' } },
+      h(
+        'div',
+        { style: { display: 'flex', alignItems: 'center', gap: 8 } },
+        h(Icons.Monitor, { size: 16, color: 'var(--brand-600)' }),
+        h('b', { style: { minWidth: 100, fontSize: 13 } }, 'Screen Layout')
+      ),
       h(
         'div',
         { className: 'seg', style: { width: 'auto' } },
         [
           ['combined', 'Combined'],
-          ['info', 'Info only'],
-          ['map', 'Map only'],
+          ['info', 'Info Only'],
+          ['map', 'Map Only'],
         ].map(([modeKey, label]) =>
           h(
             'button',
@@ -73,20 +77,21 @@ function CoSplit() {
           className: state.second ? 'p' : '',
           onClick: () =>
             updateStoreState((prev) => ({ ...prev, second: !prev.second })),
+          style: { borderRadius: 'var(--radius-full)' },
         },
-        state.second ? 'Second screen: On' : 'Add second screen'
+        state.second ? 'Second Screen: On' : '+ Pop Out Second Screen'
       )
     ),
     statusMessage &&
       h(
         'div',
-        { className: 'mu', style: { marginTop: 6, overflowWrap: 'anywhere' } },
+        { className: 'mu', style: { marginTop: 8, overflowWrap: 'anywhere' } },
         statusMessage
       ),
     h(
       'div',
-      { className: 'mu', style: { marginTop: 4 } },
-      'Split screen: the information stays on this computer screen and the map appears on a second computer screen beside or below it. Both screens share this browser’s demo data and stay in sync.'
+      { className: 'mu', style: { marginTop: 6 } },
+      'Dual monitor display: The fleet data table stays on your main screen while the full map displays on a second monitor. Both screens stay in real-time sync.'
     )
   );
 }
@@ -110,16 +115,16 @@ function SecondScreen() {
       h(
         'h2',
         null,
-        h('span', { className: 'ico' }, '🖥️'),
-        h('span', null, 'Second Screen', h('small', null, 'Fleet map display')),
+        h('span', { className: 'ico' }, h(Icons.Monitor, { size: 16 })),
+        h('span', null, 'Second Monitor', h('small', null, 'Dedicated fleet map display')),
         h(
           'button',
           {
-            style: { marginLeft: 'auto' },
+            style: { marginLeft: 'auto', borderRadius: 'var(--radius-full)', padding: '4px 10px' },
             onClick: () =>
               updateStoreState((prev) => ({ ...prev, second: false })),
           },
-          'Close'
+          'Close Screen'
         )
       ),
       h(CoopMapScreen, { embed: true })
@@ -198,17 +203,17 @@ function CoopMapScreen({ embed }) {
       {
         className: 'row',
         style: {
-          padding: '10px 14px',
-          borderBottom: '1px solid var(--bd)',
+          padding: '12px 20px',
+          borderBottom: '1px solid var(--border-subtle)',
           background: 'linear-gradient(180deg, #ffffff, #f8fbff)',
         },
       },
-      h('span', { className: 'logo' }, 'W'),
-      h('b', null, 'WaitLess · Fleet map (second screen)'),
+      h('span', { className: 'logo', style: { width: 32, height: 32, fontSize: 16 } }, 'W'),
+      h('b', { style: { fontSize: 15, color: 'var(--brand-900)' } }, 'WaitLess · Fleet Telemetry Display'),
       h(
         Badge,
         { c: state.link ? 'ok' : 'er' },
-        state.link ? 'Simulated link connected' : 'Simulated link down'
+        state.link ? 'LoRaWAN Connected' : 'Link Offline'
       ),
       h('span', { className: 'sp' }),
       h(
@@ -217,18 +222,19 @@ function CoopMapScreen({ embed }) {
           value: routeFilter,
           onChange: (e) => setRouteFilter(e.target.value),
           'aria-label': 'Route',
+          style: { padding: '5px 10px' },
         },
-        h('option', { value: 'all' }, 'All routes'),
+        h('option', { value: 'all' }, 'All Routes'),
         state.routes.map((r) => h('option', { key: r.id, value: r.id }, r.name))
       ),
       [
-        ['dm', 'Demand heatmap'],
-        ['tf', 'Traffic heatmap'],
+        ['dm', 'Demand Heatmap'],
+        ['tf', 'Traffic Heatmap'],
         ['cm', 'Commuters'],
       ].map(([key, label]) =>
         h(
           'label',
-          { key, className: 'row' },
+          { key, className: 'row', style: { fontSize: 12, cursor: 'pointer' } },
           h('input', {
             type: 'checkbox',
             checked: layerVisibility[key],
@@ -263,14 +269,14 @@ function CoopMapScreen({ embed }) {
     // Footer Info
     h(
       'div',
-      { style: { padding: '8px 14px', borderTop: '1px solid var(--bd)' } },
+      { style: { padding: '10px 18px', borderTop: '1px solid var(--border-subtle)' } },
       selectedVehicle &&
         h(VCard, { v: selectedVehicle, onSel: () => setSelectedVehicleId(null) }),
       h(Legend),
       h(
         'div',
-        { className: 'mu' },
-        `${filteredVehicles.length} units shown. Changes made on the main screen appear here automatically. Simulated data.`
+        { className: 'mu', style: { marginTop: 4 } },
+        `${filteredVehicles.length} operating units active on this screen. Real-time synchronized.`
       )
     )
   );
@@ -349,107 +355,127 @@ function Coop() {
     'div',
     { className: `in coop${splitClass}` },
 
-    // 1. Fleet KPI Summary Cards
+    // 1. Fleet Executive KPI Tiles
     h(
       'div',
       { className: 'kp' },
       [
-        ['Total units', state.vehicles.length],
+        ['Total Fleet', state.vehicles.length, Icons.Bus],
         [
           'On Route',
           countVehicles(
             (o) => !o.info.stale && o.vehicle.status === 'On Route'
           ),
+          Icons.Play,
         ],
         [
           'At Terminal',
           countVehicles(
             (o) => !o.info.stale && o.vehicle.status === 'At Terminal'
           ),
+          Icons.Clock,
         ],
         [
           'Out of Service',
           countVehicles((o) => o.vehicle.status === 'Out of Service'),
+          Icons.AlertTriangle,
         ],
         [
           'Limited Seats',
           countVehicles((o) => o.info.seat === 'Limited Seats'),
+          Icons.Users,
         ],
-        ['Stale/missing', countVehicles((o) => o.info.stale)],
-      ].map(([label, count]) =>
-        h('div', { key: label }, h('b', null, count), label)
+        ['Stale Ping', countVehicles((o) => o.info.stale), Icons.Signal],
+      ].map(([label, count, icon]) =>
+        h(
+          'div',
+          { key: label },
+          h(
+            'div',
+            { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' } },
+            h('b', null, count),
+            icon && h(icon, { size: 16, color: 'var(--brand-500)' })
+          ),
+          h('span', null, label)
+        )
       )
     ),
 
-    // 2. Map & Filter Controls
+    // 2. Interactive Fleet Map & Filters
     h(
       'div',
       { className: 'c' },
       h(
         'div',
-        { className: 'row' },
+        { className: 'row', style: { justifyContent: 'space-between', marginBottom: 10 } },
         h(
-          'select',
-          {
-            value: routeFilter,
-            onChange: (e) => setRouteFilter(e.target.value),
-            'aria-label': 'Route filter',
-          },
-          h('option', { value: 'all' }, 'All routes'),
-          state.routes.map((r) => h('option', { key: r.id, value: r.id }, r.name))
-        ),
-        h(
-          'select',
-          {
-            value: statusFilter,
-            onChange: (e) => setStatusFilter(e.target.value),
-            'aria-label': 'Status filter',
-          },
-          ['all', 'On Route', 'At Terminal', 'Out of Service', 'stale'].map((status) =>
-            h(
-              'option',
-              { key: status, value: status },
-              status === 'all'
-                ? 'All status'
-                : status === 'stale'
-                ? 'Stale data'
-                : status
+          'div',
+          { className: 'row' },
+          h(
+            'select',
+            {
+              value: routeFilter,
+              onChange: (e) => setRouteFilter(e.target.value),
+              'aria-label': 'Route filter',
+              style: { fontWeight: 600 },
+            },
+            h('option', { value: 'all' }, 'All Routes'),
+            state.routes.map((r) => h('option', { key: r.id, value: r.id }, r.name))
+          ),
+          h(
+            'select',
+            {
+              value: statusFilter,
+              onChange: (e) => setStatusFilter(e.target.value),
+              'aria-label': 'Status filter',
+              style: { fontWeight: 600 },
+            },
+            ['all', 'On Route', 'At Terminal', 'Out of Service', 'stale'].map((status) =>
+              h(
+                'option',
+                { key: status, value: status },
+                status === 'all'
+                  ? 'All Statuses'
+                  : status === 'stale'
+                  ? 'Stale Telemetry'
+                  : status
+              )
             )
           )
-        )
-      ),
-      h(
-        'div',
-        { className: 'row', style: { margin: '6px 0' } },
-        h(
-          'label',
-          null,
-          h('input', {
-            type: 'checkbox',
-            checked: showTraffic,
-            onChange: (e) => setShowTraffic(e.target.checked),
-          }),
-          ' Traffic heatmap'
         ),
         h(
-          'label',
-          null,
-          h('input', {
-            type: 'checkbox',
-            checked: showCommuters,
-            onChange: (e) => setShowCommuters(e.target.checked),
-          }),
-          ' Commuters on the road'
-        ),
-        h(
-          'label',
-          null,
-          h('input', {
-            type: 'checkbox',
-            checked: showDemand,
-            onChange: (e) => setShowDemand(e.target.checked),
-          }),
-          ' Demand heatmap'
+          'div',
+          { className: 'row' },
+          h(
+            'label',
+            { style: { fontSize: 11.5, cursor: 'pointer' } },
+            h('input', {
+              type: 'checkbox',
+              checked: showTraffic,
+              onChange: (e) => setShowTraffic(e.target.checked),
+            }),
+            ' Traffic'
+          ),
+          h(
+            'label',
+            { style: { fontSize: 11.5, cursor: 'pointer' } },
+            h('input', {
+              type: 'checkbox',
+              checked: showCommuters,
+              onChange: (e) => setShowCommuters(e.target.checked),
+            }),
+            ' Commuters'
+          ),
+          h(
+            'label',
+            { style: { fontSize: 11.5, cursor: 'pointer' } },
+            h('input', {
+              type: 'checkbox',
+              checked: showDemand,
+              onChange: (e) => setShowDemand(e.target.checked),
+            }),
+            ' Demand'
+          )
         )
       ),
       h(MapView, {
@@ -469,22 +495,29 @@ function Coop() {
       inspectedVehicle &&
         h(
           'div',
-          { style: { marginTop: 6 } },
+          { style: { marginTop: 8 } },
           h(VCard, { v: inspectedVehicle, onSel: () => {} })
         )
     ),
 
-    // 3. Vehicles Fleet Management Table
+    // 3. Vehicles Fleet Management Table with Visual Seat Bars
     h(
       'div',
       { className: 'c', style: { overflowX: 'auto' } },
       h(
         'div',
-        { className: 'row' },
-        h('h3', { style: { flex: 1 } }, 'Vehicles'),
+        { className: 'row', style: { justifyContent: 'space-between', marginBottom: 8 } },
+        h(
+          'h3',
+          { style: { margin: 0 } },
+          h('span', null, 'Fleet Unit Management'),
+          h('span', { className: 'tag' }, `${filteredVehicles.length} Units`)
+        ),
         h(
           'button',
           {
+            className: 'p',
+            style: { padding: '5px 12px', fontSize: 12 },
             onClick: () =>
               updateStoreState((prev) => ({
                 ...prev,
@@ -493,7 +526,7 @@ function Coop() {
                   {
                     id: 'v' + getCurrentTimestamp(),
                     unit: 'JP-' + (100 + prev.vehicles.length + 1),
-                    desc: 'Sample vehicle',
+                    desc: 'Modernized Jeepney',
                     routeId: prev.routes[0].id,
                     status: 'At Terminal',
                     p: 0,
@@ -507,7 +540,7 @@ function Coop() {
                 ],
               })),
           },
-          'Add sample vehicle'
+          '+ Add Unit'
         )
       ),
       h(
@@ -519,7 +552,7 @@ function Coop() {
           h(
             'tr',
             null,
-            ['Unit', 'Route', 'Status', 'Seats', 'Updated', ''].map((headerText) =>
+            ['Unit', 'Route Assignment', 'Operational Status', 'Seat Occupancy', 'Last GPS Ping', 'Actions'].map((headerText) =>
               h('th', { key: headerText }, headerText)
             )
           )
@@ -529,6 +562,9 @@ function Coop() {
           null,
           filteredVehicles.map((vehicle) => {
             const vInfo = getVehicleStatusInfo(vehicle);
+            const avail = vehicle.avail;
+            const total = vehicle.total || 33;
+            const occRatio = avail == null ? 0 : Math.max(0, total - avail) / total;
 
             return h(
               'tr',
@@ -541,6 +577,7 @@ function Coop() {
                   'a',
                   {
                     href: '#',
+                    style: { fontWeight: 700, color: 'var(--brand-700)' },
                     onClick: (e) => {
                       e.preventDefault();
                       setSelectedVehicleId(vehicle.id);
@@ -548,7 +585,7 @@ function Coop() {
                   },
                   vehicle.unit
                 ),
-                h('div', null, h(Badge, { c: vInfo.col }, vInfo.label))
+                h('div', { style: { marginTop: 2 } }, h(Badge, { c: vInfo.col }, vInfo.label))
               ),
               // Route Dropdown
               h(
@@ -561,6 +598,7 @@ function Coop() {
                     onChange: (e) =>
                       updateVehicleData(vehicle.id, { routeId: e.target.value }),
                     'aria-label': `Route for ${vehicle.unit}`,
+                    style: { padding: '4px 6px', fontSize: 11.5 },
                   },
                   state.routes.map((r) =>
                     h('option', { key: r.id, value: r.id }, r.name)
@@ -586,43 +624,76 @@ function Coop() {
                       }
                     },
                     'aria-label': `Status for ${vehicle.unit}`,
+                    style: { padding: '4px 6px', fontSize: 11.5 },
                   },
                   ['On Route', 'At Terminal', 'Out of Service'].map((status) =>
                     h('option', { key: status }, status)
                   )
                 )
               ),
-              // Available Seats Input
+              // Seat Occupancy Meter & Input
               h(
                 'td',
                 null,
-                h('input', {
-                  type: 'number',
-                  min: 0,
-                  max: vehicle.total,
-                  style: { width: 56 },
-                  placeholder: '?',
-                  value: vehicle.avail ?? '',
-                  onChange: (e) =>
-                    updateVehicleData(vehicle.id, {
-                      avail:
-                        e.target.value === ''
-                          ? null
-                          : Math.max(
-                              0,
-                              Math.min(vehicle.total, +e.target.value)
-                            ),
-                      seatSrc:
-                        e.target.value === ''
-                          ? 'Unknown'
-                          : 'Manually reported',
-                    }),
-                  'aria-label': `Seats for ${vehicle.unit}`,
-                }),
-                `/${vehicle.total}`
+                h(
+                  'div',
+                  { style: { display: 'flex', alignItems: 'center', gap: 6 } },
+                  h('input', {
+                    type: 'number',
+                    min: 0,
+                    max: vehicle.total,
+                    style: { width: 52, padding: '3px 6px', fontSize: 11.5 },
+                    placeholder: '?',
+                    value: vehicle.avail ?? '',
+                    onChange: (e) =>
+                      updateVehicleData(vehicle.id, {
+                        avail:
+                          e.target.value === ''
+                            ? null
+                            : Math.max(
+                                0,
+                                Math.min(vehicle.total, +e.target.value)
+                              ),
+                        seatSrc:
+                          e.target.value === ''
+                            ? 'Unknown'
+                            : 'Manually reported',
+                      }),
+                    'aria-label': `Seats for ${vehicle.unit}`,
+                  }),
+                  h('span', { style: { color: 'var(--tx-muted)', fontSize: 11 } }, `/${total}`)
+                ),
+                // Mini Visual Seat Bar
+                avail != null &&
+                  h(
+                    'div',
+                    {
+                      style: {
+                        height: 4,
+                        width: 70,
+                        background: '#e2e8f0',
+                        borderRadius: 99,
+                        marginTop: 4,
+                        overflow: 'hidden',
+                      },
+                    },
+                    h('i', {
+                      style: {
+                        display: 'block',
+                        height: '100%',
+                        width: `${occRatio * 100}%`,
+                        background:
+                          avail === 0
+                            ? 'var(--er-primary)'
+                            : avail <= 8
+                            ? 'var(--wa-primary)'
+                            : 'var(--ok-primary)',
+                      },
+                    })
+                  )
               ),
               // Last Telemetry Timestamp
-              h('td', null, formatTimeAgo(vehicle.lastAt)),
+              h('td', { style: { color: 'var(--tx-muted)' } }, formatTimeAgo(vehicle.lastAt)),
               // Action Buttons
               h(
                 'td',
@@ -630,6 +701,14 @@ function Coop() {
                 h(
                   'button',
                   {
+                    style: {
+                      padding: '3px 8px',
+                      fontSize: 11,
+                      color: 'var(--er-primary)',
+                      background: 'var(--er-bg)',
+                      border: '1px solid var(--er-border)',
+                      borderRadius: 'var(--radius-sm)',
+                    },
                     onClick: () => {
                       updateVehicleData(vehicle.id, { status: 'Out of Service' });
                       triggerAlert({
@@ -646,6 +725,7 @@ function Coop() {
                   'button',
                   {
                     className: 'x',
+                    style: { padding: '3px 8px', fontSize: 11, borderRadius: 'var(--radius-sm)' },
                     onClick: () => {
                       if (confirm(`Delete ${vehicle.unit}?`)) {
                         updateStoreState((prev) => ({
@@ -668,56 +748,77 @@ function Coop() {
     h(
       'div',
       { className: 'c' },
-      h('h3', null, 'Routes'),
-      state.routes.map((route) => {
-        const assignedUnitCount = state.vehicles.filter(
-          (v) => v.routeId === route.id
-        ).length;
+      h(
+        'h3',
+        null,
+        h('span', null, 'Route Network Manager'),
+        h('span', { className: 'tag' }, `${state.routes.length} Routes`)
+      ),
+      h(
+        'div',
+        { style: { display: 'grid', gap: 8 } },
+        state.routes.map((route) => {
+          const assignedUnitCount = state.vehicles.filter(
+            (v) => v.routeId === route.id
+          ).length;
 
-        return h(
-          'div',
-          { key: route.id, className: 'row' },
-          h(
-            'span',
-            { style: { flex: 1 } },
-            `${route.name}: ${route.from} → ${route.to} (${assignedUnitCount} units)`
-          ),
-          h(
-            'button',
+          return h(
+            'div',
             {
-              onClick: () => {
-                const newName = prompt('Route name', route.name);
-                if (newName && newName.trim()) {
+              key: route.id,
+              className: 'row',
+              style: {
+                padding: '8px 12px',
+                background: 'var(--surface-subtle)',
+                borderRadius: 'var(--radius-sm)',
+                border: '1px solid var(--border-subtle)',
+              },
+            },
+            h(
+              'span',
+              { style: { flex: 1, fontWeight: 600, color: 'var(--tx-primary)' } },
+              `${route.name}: ${route.from} → ${route.to} `,
+              h('span', { style: { color: 'var(--tx-muted)', fontWeight: 400, fontSize: 11.5 } }, `(${assignedUnitCount} units assigned)`)
+            ),
+            h(
+              'button',
+              {
+                style: { padding: '3px 9px', fontSize: 11 },
+                onClick: () => {
+                  const newName = prompt('Route name', route.name);
+                  if (newName && newName.trim()) {
+                    updateStoreState((prev) => ({
+                      ...prev,
+                      routes: prev.routes.map((r) =>
+                        r.id === route.id ? { ...r, name: newName.trim() } : r
+                      ),
+                    }));
+                  }
+                },
+              },
+              'Rename'
+            ),
+            h(
+              'button',
+              {
+                style: { padding: '3px 9px', fontSize: 11 },
+                onClick: () =>
                   updateStoreState((prev) => ({
                     ...prev,
                     routes: prev.routes.map((r) =>
-                      r.id === route.id ? { ...r, name: newName.trim() } : r
+                      r.id === route.id ? { ...r, active: !r.active } : r
                     ),
-                  }));
-                }
+                  })),
               },
-            },
-            'Rename'
-          ),
-          h(
-            'button',
-            {
-              onClick: () =>
-                updateStoreState((prev) => ({
-                  ...prev,
-                  routes: prev.routes.map((r) =>
-                    r.id === route.id ? { ...r, active: !r.active } : r
-                  ),
-                })),
-            },
-            route.active ? 'Deactivate' : 'Activate'
-          )
-        );
-      }),
+              route.active ? 'Deactivate' : 'Activate'
+            )
+          );
+        })
+      ),
       // Add Route Input Form
       h(
         'div',
-        { className: 'row', style: { marginTop: 6 } },
+        { className: 'row', style: { marginTop: 10 } },
         ['name', 'from', 'to'].map((fieldKey) =>
           h('input', {
             key: fieldKey,
@@ -730,13 +831,14 @@ function Coop() {
             value: newRoute[fieldKey],
             onChange: (e) =>
               setNewRoute({ ...newRoute, [fieldKey]: e.target.value }),
-            style: { width: 130 },
+            style: { width: 130, padding: '6px 10px' },
           })
         ),
         h(
           'button',
           {
             className: 'p',
+            style: { padding: '6px 12px' },
             onClick: () => {
               if (
                 !newRoute.name.trim() ||
@@ -773,33 +875,61 @@ function Coop() {
               setNewRoute({ name: '', from: '', to: '' });
             },
           },
-          'Add route'
+          'Add Route'
         )
       ),
       routeErrorMessage &&
-        h('div', { style: { color: 'var(--er)' } }, routeErrorMessage)
+        h('div', { style: { color: 'var(--er-primary)', marginTop: 4 } }, routeErrorMessage)
     ),
 
-    // 5. Demand Hotspots & Dispatch Suggestions
+    // 5. Demand Hotspots & Automated Dispatch Suggestions
     h(
       'div',
       { className: 'c' },
-      h('h3', null, 'Demand hotspots (simulated)'),
-      state.demand.map((hotspot) => {
-        const route = getRouteById(state, hotspot.routeId);
-        return h(
-          'div',
-          { key: hotspot.id, className: 'row' },
-          h(Badge, { c: getLevelColorClass(hotspot.level) }, hotspot.level),
-          `${hotspot.loc} · ${hotspot.count} waiting · ${
-            route?.name || '—'
-          } · ${formatTimeAgo(hotspot.at)} · ${hotspot.src}`
-        );
-      }),
+      h(
+        'h3',
+        null,
+        h('span', null, 'Passenger Demand Hotspots'),
+        h('span', { className: 'tag' }, 'SIMULATED IOT')
+      ),
+      h(
+        'div',
+        { style: { display: 'grid', gap: 6 } },
+        state.demand.map((hotspot) => {
+          const route = getRouteById(state, hotspot.routeId);
+          return h(
+            'div',
+            { key: hotspot.id, className: 'row', style: { padding: '4px 0' } },
+            h(Badge, { c: getLevelColorClass(hotspot.level) }, hotspot.level),
+            h(
+              'span',
+              { style: { flex: 1, color: 'var(--tx-primary)', fontWeight: 600 } },
+              `${hotspot.loc} `
+            ),
+            h('span', { style: { color: 'var(--brand-700)', fontWeight: 700 } }, `${hotspot.count} waiting`),
+            h(
+              'span',
+              { className: 'mu' },
+              `· ${route?.name || '—'} · ${formatTimeAgo(hotspot.at)}`
+            )
+          );
+        })
+      ),
       highDemandHotspots.length
         ? h(
             'div',
-            { className: 'mu', style: { marginTop: 6 } },
+            {
+              className: 'mu',
+              style: {
+                marginTop: 8,
+                padding: '8px 12px',
+                background: 'var(--wa-bg)',
+                color: 'var(--wa-tx)',
+                borderRadius: 'var(--radius-sm)',
+                border: '1px solid var(--wa-border)',
+                fontWeight: 600,
+              },
+            },
             highDemandHotspots
               .map((hotspot) => {
                 const activeUnits = state.vehicles.filter(
@@ -813,11 +943,11 @@ function Coop() {
                     v.routeId === hotspot.routeId && v.status === 'At Terminal'
                 ).length;
 
-                return `Consider reviewing vehicle availability near ${hotspot.loc}: ${activeUnits} operating, ${terminalUnits} at terminal.`;
+                return `• Consider dispatching units near ${hotspot.loc}: ${activeUnits} on route, ${terminalUnits} waiting at terminal.`;
               })
               .join(' ')
           )
-        : h('div', { className: 'mu' }, 'No high-demand areas reported.')
+        : h('div', { className: 'mu', style: { marginTop: 6 } }, 'No high-demand congestion areas reported.')
     ),
 
     // 6. Fare Matrix Configuration
@@ -830,74 +960,108 @@ function Coop() {
     h(
       'div',
       { className: 'c' },
-      h('h3', null, 'Operational alerts'),
+      h(
+        'h3',
+        null,
+        h('span', null, 'Operational Fleet Alerts'),
+        h('span', { className: 'tag' }, `${state.alerts.length} Alerts`)
+      ),
       state.alerts.length
-        ? state.alerts.map((alertItem) =>
-            h(
-              'div',
-              { key: alertItem.id, className: 'row' },
+        ? h(
+            'div',
+            { style: { display: 'grid', gap: 8 } },
+            state.alerts.map((alertItem) =>
               h(
-                Badge,
+                'div',
                 {
-                  c:
-                    alertItem.status === 'Open'
-                      ? getLevelColorClass(alertItem.sev)
-                      : 'ok',
+                  key: alertItem.id,
+                  className: 'row',
+                  style: {
+                    padding: '8px 12px',
+                    background: 'var(--surface-subtle)',
+                    borderRadius: 'var(--radius-sm)',
+                    border: '1px solid var(--border-subtle)',
+                  },
                 },
-                alertItem.status
-              ),
-              h(
-                'span',
-                { style: { flex: 1 } },
-                `${alertItem.msg} · ${formatTimeAgo(alertItem.at)}`
-              ),
-              alertItem.status === 'Open' &&
                 h(
-                  'button',
+                  Badge,
                   {
-                    onClick: () =>
-                      updateStoreState((prev) => ({
-                        ...prev,
-                        alerts: prev.alerts.map((a) =>
-                          a.id === alertItem.id
-                            ? { ...a, status: 'Acknowledged' }
-                            : a
-                        ),
-                      })),
+                    c:
+                      alertItem.status === 'Open'
+                        ? getLevelColorClass(alertItem.sev)
+                        : 'ok',
                   },
-                  'Acknowledge'
+                  alertItem.status
                 ),
-              alertItem.status !== 'Resolved' &&
                 h(
-                  'button',
-                  {
-                    onClick: () =>
-                      updateStoreState((prev) => ({
-                        ...prev,
-                        alerts: prev.alerts.map((a) =>
-                          a.id === alertItem.id
-                            ? { ...a, status: 'Resolved' }
-                            : a
-                        ),
-                      })),
-                  },
-                  'Resolve'
-                )
+                  'span',
+                  { style: { flex: 1, fontWeight: 600, color: 'var(--tx-primary)' } },
+                  `${alertItem.msg} `,
+                  h('small', { style: { color: 'var(--tx-muted)', fontWeight: 400 } }, `(${formatTimeAgo(alertItem.at)})`)
+                ),
+                alertItem.status === 'Open' &&
+                  h(
+                    'button',
+                    {
+                      style: { padding: '3px 9px', fontSize: 11 },
+                      onClick: () =>
+                        updateStoreState((prev) => ({
+                          ...prev,
+                          alerts: prev.alerts.map((a) =>
+                            a.id === alertItem.id
+                              ? { ...a, status: 'Acknowledged' }
+                              : a
+                          ),
+                        })),
+                    },
+                    'Acknowledge'
+                  ),
+                alertItem.status !== 'Resolved' &&
+                  h(
+                    'button',
+                    {
+                      style: { padding: '3px 9px', fontSize: 11 },
+                      onClick: () =>
+                        updateStoreState((prev) => ({
+                          ...prev,
+                          alerts: prev.alerts.map((a) =>
+                            a.id === alertItem.id
+                              ? { ...a, status: 'Resolved' }
+                              : a
+                          ),
+                        })),
+                    },
+                    'Resolve'
+                  )
+              )
             )
           )
-        : h('div', { className: 'mu' }, 'No alerts. The fleet is quiet.')
+        : h('div', { className: 'mu' }, 'No active alerts. The fleet is operating smoothly.')
     ),
 
     // 9. PAO Field Reports Feed
     h(
       'div',
       { className: 'c' },
-      h('h3', null, 'PAO field reports'),
+      h(
+        'h3',
+        null,
+        h('span', null, 'PAO Ground Officer Reports'),
+        h('span', { className: 'tag' }, 'FIELD DISPATCH')
+      ),
       state.obs.slice(0, 4).map((observation) =>
         h(
           'div',
-          { key: observation.id, className: 'mu' },
-          `${observation.type} at ${observation.loc} (${observation.sev}) · ${formatTimeAgo(
+          {
+            key: observation.id,
+            className: 'mu',
+            style: {
+              padding: '6px 0',
+              borderBottom: '1px solid var(--border-subtle)',
+              color: 'var(--tx-secondary)',
+            },
+          },
+          `• ${observation.type} at ${observation.loc} (${observation.sev}) · Reported ${formatTimeAgo(
             observation.at
           )}`
         )
