@@ -75,12 +75,19 @@ function MapView({
     onMapClick(transformed.x, transformed.y);
   };
 
+  // Refs for positioning the HTML tooltip card
+  const svgRef = useRef(null);
+
   const activeVehicleId = hoveredVehicleId || pinnedVehicleId;
   const inspectedVehicle = vehicles.find((v) => v.id === activeVehicleId);
 
   return h(
+    'div',
+    { style: { position: 'relative', lineHeight: 0 } },
+    h(
     'svg',
     {
+      ref: svgRef,
       className: 'm',
       style: onMapClick ? { cursor: 'crosshair' } : undefined,
       onClick: handleSvgClick,
@@ -90,25 +97,10 @@ function MapView({
       'aria-label': 'Simulated route map with demand heatmap (offline schematic)',
     },
 
-    // 1. Defs: Heatmap radial gradients, drop shadows & filter effects
+    // 1. Defs: Heatmap radial gradients
     h(
       'defs',
       null,
-      // Drop Shadow Filter for Tooltip Card only (not vehicle markers)
-      h(
-        'filter',
-        { id: 'cardShadow', x: '-20%', y: '-20%', width: '140%', height: '140%' },
-        h('feDropShadow', {
-          dx: 0,
-          dy: 2,
-          stdDeviation: 2.5,
-          'flood-color': '#0f172a',
-          'flood-opacity': 0.15,
-        })
-      ),
-      // markerShadow intentionally removed — SVG feDropShadow causes element
-      // dropout on small viewBox coords in Chromium/WebKit. Crisp white strokes
-      // provide visual separation without rendering issues.
       // Radial Heatmap Gradients
       [
         ['High', '#ef4444'],
@@ -563,95 +555,127 @@ function MapView({
         );
       }),
 
-    // 14. Modern Vehicle Diagnostic Inspection Tooltip (Card Popover)
-    (() => {
-      if (!inspectedVehicle) return null;
-      const route = routes.find((r) => r.id === inspectedVehicle.routeId);
-      const coords = getPositionOnRoute(route, inspectedVehicle.p);
-      if (!coords) return null;
+    // 14. (Tooltip rendered as HTML overlay below, outside the SVG)
+  ), // end <svg>
 
-      const info = getVehicleStatusInfo(inspectedVehicle);
+  // 14. HTML Vehicle Diagnostic Tooltip — floats over the map as a real card
+  // Uses the .c card class so it always has a white background like all other cards.
+  (() => {
+    if (!inspectedVehicle) return null;
+    const route = routes.find((r) => r.id === inspectedVehicle.routeId);
+    if (!route) return null;
 
-      // Find next stop according to traversal direction
-      const nextStop =
-        route &&
-        (route.pick
-          .filter((stop) =>
-            inspectedVehicle.dir > 0
-              ? stop.p >= inspectedVehicle.p
-              : stop.p <= inspectedVehicle.p
-          )
-          .sort(
-            (a, b) =>
-              Math.abs(a.p - inspectedVehicle.p) - Math.abs(b.p - inspectedVehicle.p)
-          )[0] || route.pick[route.pick.length - 1]);
+    const info = getVehicleStatusInfo(inspectedVehicle);
 
-      const eta = nextStop && calculateEta(state, inspectedVehicle, nextStop);
+    // Status badge color map
+    const statusColorHex = { gr: '#64748b', er: '#ef4444', pr: '#2563eb', ok: '#10b981' };
+    const statusColor = statusColorHex[info.col] || '#10b981';
+    const seatColorHex = { gr: '#64748b', er: '#ef4444', wa: '#f59e0b', ok: '#10b981' };
+    const seatColor = seatColorHex[info.seatCol] || '#10b981';
 
-      const lines = [
-        `${inspectedVehicle.unit} · ${route ? route.name : ''}`,
-        `${info.label} · ${info.seat}`,
-        inspectedVehicle.avail == null
-          ? 'Seats unknown'
-          : `${inspectedVehicle.avail} of ${inspectedVehicle.total} seats free`,
-        ...(eta
-          ? [
-              `ETA to ${nextStop.n}: ${formatMinutes(eta.adj)}`,
-              eta.lv && eta.f > 1
-                ? `+${formatMinutes(eta.adj - eta.base)} due to ${eta.lv.toLowerCase()} traffic`
-                : eta.lv
-                ? 'Light traffic, no delay'
-                : 'No traffic delay reported',
-            ]
-          : ['ETA unavailable']),
-        `Updated ${formatTimeAgo(inspectedVehicle.lastAt)}`,
-        'Telemetry: Simulated LoRaWAN',
-      ];
+    // Find next stop based on direction of travel
+    const nextStop = route.pick
+      .filter((stop) =>
+        inspectedVehicle.dir > 0
+          ? stop.p >= inspectedVehicle.p
+          : stop.p <= inspectedVehicle.p
+      )
+      .sort((a, b) => Math.abs(a.p - inspectedVehicle.p) - Math.abs(b.p - inspectedVehicle.p))[0]
+      || route.pick[route.pick.length - 1];
 
-      const tooltipWidth = 56;
-      const tooltipHeight = lines.length * 3.2 + 3;
+    const eta = nextStop && calculateEta(state, inspectedVehicle, nextStop);
+    const etaText = eta
+      ? `ETA to ${nextStop.n}: ${formatMinutes(eta.adj)}` +
+        (eta.lv && eta.f > 1
+          ? ` (+${formatMinutes(eta.adj - eta.base)} ${eta.lv.toLowerCase()} traffic)`
+          : '')
+      : 'ETA unavailable';
 
-      // Keep tooltip safely inside visible viewBox
-      const tooltipX = Math.max(
-        viewBox[0] + 1.5,
-        Math.min(viewBox[0] + viewBox[2] - tooltipWidth - 1.5, coords[0] - tooltipWidth / 2)
-      );
-      const tooltipY =
-        coords[1] - tooltipHeight - 3.5 < viewBox[1] + 1.5
-          ? coords[1] + 3.5
-          : coords[1] - tooltipHeight - 3.5;
+    const seatText = inspectedVehicle.avail == null
+      ? 'Seats unknown'
+      : `${inspectedVehicle.avail} of ${inspectedVehicle.total} seats free`;
 
-      return h(
-        'g',
-        { style: { pointerEvents: 'none' } },
-        h('rect', {
-          x: tooltipX,
-          y: tooltipY,
-          width: tooltipWidth,
-          height: tooltipHeight,
-          rx: 2.2,
-          fill: '#ffffff',
-          stroke: '#3b82f6',
-          strokeWidth: 0.5,
-          filter: 'url(#cardShadow)',
-        }),
-        lines.map((lineText, idx) =>
+    return h(
+      'div',
+      {
+        key: 'html-tooltip',
+        style: {
+          position: 'absolute',
+          bottom: 10,
+          left: '50%',
+          transform: 'translateX(-50%)',
+          width: 'min(320px, calc(100% - 24px))',
+          background: '#ffffff',
+          border: '1px solid #bfdbfe',
+          borderRadius: 12,
+          boxShadow: '0 4px 24px rgba(15,23,42,0.13), 0 1px 4px rgba(15,23,42,0.07)',
+          padding: '12px 14px',
+          pointerEvents: 'none',
+          zIndex: 10,
+          lineHeight: '1.4',
+        },
+      },
+      // Header: unit name + status badge
+      h(
+        'div',
+        { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 } },
+        h(
+          'div',
+          { style: { display: 'flex', alignItems: 'center', gap: 6 } },
+          h('b', { style: { fontSize: 14, color: '#0f172a' } }, inspectedVehicle.unit),
           h(
-            'text',
+            'span',
             {
-              key: idx,
-              x: tooltipX + 2.5,
-              y: tooltipY + 3.8 + idx * 3.2,
-              fontSize: idx === 0 ? 2.3 : 2.0,
-              fontWeight: idx === 0 ? 800 : idx === 1 ? 600 : 400,
-              fill: idx === 0 ? '#1e3a8a' : idx === 1 ? '#0f172a' : '#475569',
+              style: {
+                fontSize: 10,
+                fontWeight: 700,
+                padding: '2px 8px',
+                borderRadius: 999,
+                background: statusColor + '1a',
+                color: statusColor,
+                border: `1px solid ${statusColor}44`,
+              },
             },
-            lineText
+            info.label
           )
+        ),
+        h(
+          'span',
+          {
+            style: {
+              fontSize: 10,
+              fontWeight: 700,
+              padding: '2px 8px',
+              borderRadius: 999,
+              background: seatColor + '1a',
+              color: seatColor,
+              border: `1px solid ${seatColor}44`,
+            },
+          },
+          info.seat
         )
-      );
-    })()
-  );
+      ),
+      // Route name
+      h(
+        'div',
+        { style: { fontSize: 11.5, color: '#475569', marginBottom: 4 } },
+        `${route.name} · ${seatText}`
+      ),
+      // ETA
+      h(
+        'div',
+        { style: { fontSize: 12, color: '#1e40af', fontWeight: 600, marginBottom: 4 } },
+        etaText
+      ),
+      // Last update
+      h(
+        'div',
+        { style: { fontSize: 11, color: '#94a3b8' } },
+        `Updated ${formatTimeAgo(inspectedVehicle.lastAt)} · Simulated LoRaWAN`
+      )
+    );
+  })()
+  ); // end outer wrapper div
 }
 
 /**
