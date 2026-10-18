@@ -1,5 +1,101 @@
-// Simulated GPS/LoRaWAN movement and approaching-vehicle alerts
+/**
+ * WaitLess Prototype - Simulation Engine
+ *
+ * Simulates:
+ * - GPS/LoRaWAN heartbeat telemetry pings from fleet vehicles
+ * - Bidirectional vehicle movement along assigned route polylines
+ * - Automatic terminal turnaround at route boundaries
+ * - Geofenced proximity detection and push notifications for passenger alerts
+ */
 
-setInterval(()=>{if(!S.sim||location.hash==='#map')return;set(s=>{const t=now(),toasts=[...s.toasts];const vs=s.vehicles.map(v=>{let n={...v};if(s.link&&!v.mute){n.lastAt=t;if(v.status==='On Route'){n.p=v.p+v.dir*.02;if(n.p>=1){n.p=1;n.dir=-1}if(n.p<=0){n.p=0;n.dir=1}}}return n});
-const watch=s.watch.map(w=>{const v=vs.find(x=>x.id===w.vid);if(!w.fired&&v&&!info(v).stale&&Math.abs(v.p-w.p)<.08){toasts.unshift({id:'n'+t+w.vid,msg:`${v.unit} is approaching ${w.pn}.`});return{...w,fired:true}}return w});
-return{...s,vehicles:vs,watch,toasts:toasts.slice(0,4)}})},1500);
+/**
+ * Computes one discrete simulation tick update.
+ * @param {Object} currentState - Current state from store
+ * @returns {Object} Updated state
+ */
+function stepSimulation(currentState) {
+  const timestamp = getCurrentTimestamp();
+  const toasts = [...currentState.toasts];
+
+  // 1. Update vehicle positions and simulated telemetry pings
+  const updatedVehicles = currentState.vehicles.map((vehicle) => {
+    const updated = { ...vehicle };
+
+    // When simulated LoRaWAN link is active and vehicle is unmuted, refresh timestamp
+    if (currentState.link && !vehicle.mute) {
+      updated.lastAt = timestamp;
+
+      // Vehicles currently 'On Route' advance incrementally along their path
+      if (vehicle.status === 'On Route') {
+        const stepDelta = vehicle.dir * 0.02;
+        updated.p = vehicle.p + stepDelta;
+
+        // Bounce back and reverse direction at route endpoints
+        if (updated.p >= 1) {
+          updated.p = 1;
+          updated.dir = -1;
+        } else if (updated.p <= 0) {
+          updated.p = 0;
+          updated.dir = 1;
+        }
+      }
+    }
+    return updated;
+  });
+
+  // 2. Check passenger alert watches for approaching vehicles
+  const updatedWatches = currentState.watch.map((watch) => {
+    const targetVehicle = updatedVehicles.find((v) => v.id === watch.vid);
+    const vehicleInfo = targetVehicle ? getVehicleStatusInfo(targetVehicle) : null;
+
+    // Trigger alert if vehicle is active, has fresh telemetry, and is within 8% route proximity
+    const isApproaching =
+      !watch.fired &&
+      targetVehicle &&
+      vehicleInfo &&
+      !vehicleInfo.stale &&
+      Math.abs(targetVehicle.p - watch.p) < 0.08;
+
+    if (isApproaching) {
+      toasts.unshift({
+        id: `n_${timestamp}_${watch.vid}`,
+        msg: `${targetVehicle.unit} is approaching ${watch.pn}.`,
+      });
+      return { ...watch, fired: true };
+    }
+    return watch;
+  });
+
+  return {
+    ...currentState,
+    vehicles: updatedVehicles,
+    watch: updatedWatches,
+    toasts: toasts.slice(0, 4), // Retain latest 4 notifications
+  };
+}
+
+/**
+ * Starts the recurring simulation loop.
+ * Skips processing if simulation is paused or if running in second-screen display-only mode.
+ */
+function startSimulationEngine() {
+  const SIMULATION_INTERVAL_MS = 1500;
+
+  return setInterval(() => {
+    // Only execute simulation on primary views when active
+    if (!storeState.sim || window.location.hash === '#map') {
+      return;
+    }
+
+    updateStoreState((currentState) => stepSimulation(currentState));
+  }, SIMULATION_INTERVAL_MS);
+}
+
+// Start simulation engine immediately
+const simulationTimerId = startSimulationEngine();
+
+window.WaitLessSimulation = {
+  stepSimulation,
+  startSimulationEngine,
+  timerId: simulationTimerId,
+};

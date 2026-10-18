@@ -1,38 +1,681 @@
-// Shared UI: badges, layers button, draggable bottom sheet, cards, trip planner
+/**
+ * WaitLess Prototype - Shared UI Components
+ *
+ * Provides reusable components:
+ * - Badges and Severity color mappers
+ * - ETA cards with traffic congestion impact analysis
+ * - Fare guide and cooperative fare matrix settings editor
+ * - Trip planner with stop selection and nearest-stop pin locator
+ * - Vehicle information cards with live status badges
+ * - Map layers toggle button
+ * - Draggable bottom sheet with touch/pointer snapping
+ * - Drag-to-scroll carousel gesture handlers
+ */
 
-function EtaCard({rid='all'}){const s=useS();const rs=s.routes.filter(r=>r.active&&(rid==='all'||r.id===rid));return h('div',{className:'c'},h('h3',null,'ETA with traffic congestion (simulated)'),rs.map(r=>{const pk=r.pick[Math.min(1,r.pick.length-1)],c=s.vehicles.filter(v=>v.routeId===r.id).map(v=>({v,e:etaInfo(s,v,pk)})).filter(x=>x.e).sort((a,b)=>a.e.adj-b.e.adj)[0],t=tfac(s,r.id);
-return h('div',{key:r.id,style:{marginBottom:6}},h('div',{className:'row'},h('b',null,r.name),t.lv&&h(B,{c:lvC(t.lv)},t.lv+' traffic')),h('div',{className:'mu'},c?`Next unit ${c.v.unit} reaches ${pk.n} in ${fm(c.e.adj)}. `+(c.e.f>1?`Due to ${t.lv.toLowerCase()} traffic congestion, this adds ${fm(c.e.adj-c.e.base)} (${fm(c.e.base)} without traffic).`:'No traffic delay reported.'):'ETA unavailable: no vehicle with fresh location data.'))}),h('div',{className:'mu'},'Estimates use simulated traffic and vehicle data, not live predictions.'))}
+/**
+ * Status or Severity Badge
+ */
+function Badge({ c: colorClass, children }) {
+  return h('span', { className: `b ${colorClass}` }, children);
+}
+const B = Badge; // Backward-compatible alias
 
-const B=({c,children})=>h('span',{className:'b '+c},children);
+/**
+ * Maps traffic or demand severity levels to badge color codes.
+ * @param {string} level - 'High', 'Moderate', 'Light', etc.
+ * @returns {string} Color class: 'er' | 'wa' | 'ok' | 'gr'
+ */
+function getLevelColorClass(level) {
+  const map = {
+    High: 'er',
+    Heavy: 'er',
+    Moderate: 'wa',
+    Light: 'ok',
+    Low: 'ok',
+  };
+  return map[level] || 'gr';
+}
+const lvC = getLevelColorClass; // Backward-compatible alias
 
-const lvC=l=>({High:'er',Heavy:'er',Moderate:'wa',Light:'ok',Low:'ok'}[l]||'gr');
+/**
+ * ETA summary card displaying arrival estimations and congestion delays
+ */
+function EtaCard({ rid = 'all' }) {
+  const state = useStoreState();
+  const routes = state.routes.filter(
+    (route) => route.active && (rid === 'all' || route.id === rid)
+  );
 
-function FareCard({r}){const s=useS(),F=s.fare||FD,full=fareFor(s,r,0,1);return h('div',{className:'c'},h('h3',null,'Fare guide: '+r.name),h('div',{className:'row'},h(B,{c:'pr'},'Full route ₱'+full.reg),h(B,{c:'ok'},'Student/Senior/PWD ₱'+full.dis),h('span',{className:'mu'},full.km.toFixed(1)+' km')),r.pick.slice(1).map((k,i)=>{const f=fareFor(s,r,r.pick[0].p,k.p);return h('div',{key:i,className:'row mu'},h('span',{style:{flex:1}},r.pick[0].n+' → '+k.n+' ('+f.km.toFixed(1)+' km)'),h('b',null,'₱'+f.reg+' / ₱'+f.dis))}),h('div',{className:'mu'},`Sample fares: ₱${F.base} for the first ${F.km} km + ₱${F.per}/km, ${F.disc}% discount. Not official rates.`))}
+  return h(
+    'div',
+    { className: 'c' },
+    h('h3', null, 'ETA with traffic congestion (simulated)'),
+    routes.map((route) => {
+      const targetStop = route.pick[Math.min(1, route.pick.length - 1)];
 
-function FareSettings(){const s=useS(),F=s.fare||FD,up=(k,v)=>set(x=>({...x,fare:{...(x.fare||FD),[k]:Math.max(0,Number.isFinite(+v)?+v:0)}}));
-return h('div',{className:'c'},h('h3',null,'Fare settings (sample)'),h('div',{className:'row'},[['base','Base ₱'],['km','Base km'],['per','₱ per km'],['disc','Discount %']].map(([k,l])=>h('label',{key:k,className:'mu'},l+' ',h('input',{type:'number',min:0,step:'any',style:{width:64},value:F[k],onChange:e=>up(k,e.target.value),'aria-label':l})))),s.routes.filter(r=>r.active).map(r=>{const f=fareFor(s,r,0,1);return h('div',{key:r.id,className:'mu'},r.name+': ₱'+f.reg+' regular, ₱'+f.dis+' discounted ('+f.km.toFixed(1)+' km)')}),h('div',{className:'mu'},'Fares update in the Commuter app. Demo values, not LTFRB-approved rates.'))}
+      // Find vehicle with lowest adjusted ETA to target stop
+      const nextVehicleArrival = state.vehicles
+        .filter((v) => v.routeId === route.id)
+        .map((v) => ({ v, e: calculateEta(state, v, targetStop) }))
+        .filter((item) => item.e)
+        .sort((a, b) => a.e.adj - b.e.adj)[0];
 
-function TripPlan({r,pi,setPi,to,setTo}){const s=useS(),n=r.pick.length,oi=Math.min(pi,n-1),di=Math.min(to,n-1),o=r.pick[oi],d=r.pick[di];
-const tp=t=>t.p??({'Airport Road':.55,'Molo Crossing':.5,'Diversion Road':.3}[t.road]??.5);
-const lo=Math.min(o.p,d.p),hi=Math.max(o.p,d.p),lv=s.traffic.filter(t=>t.routeId===r.id&&t.level!=='Unknown'&&tp(t)>=lo-.05&&tp(t)<=hi+.05).map(t=>t.level),w=lv.includes('Heavy')?'Heavy':lv.includes('Moderate')?'Moderate':lv.length?'Light':null,f=w?TF[w]:1;
-const fr=fareFor(s,r,o.p,d.p),base=fr.km*2.4,ride=base*f;
-const best=s.vehicles.filter(v=>v.routeId===r.id).map(v=>({v,e:etaInfo(s,v,o)})).filter(x=>x.e).sort((a,b)=>a.e.adj-b.e.adj)[0];
-const me=s.cloc||[22,40],near=()=>{let b=0,bd=1e9;r.pick.forEach((k,i)=>{const q=pos(r,k.p),dd=Math.hypot(q[0]-me[0],q[1]-me[1]);if(dd<bd){bd=dd;b=i}});setPi(b)};
-return h('div',{className:'c'},h('h3',null,'Plan your trip'),h('div',{className:'row'},h('select',{value:oi,onChange:e=>setPi(+e.target.value),'aria-label':'From'},r.pick.map((k,i)=>h('option',{key:i,value:i},'From: '+k.n))),h('select',{value:di,onChange:e=>setTo(+e.target.value),'aria-label':'To'},r.pick.map((k,i)=>h('option',{key:i,value:i},'To: '+k.n))),h('button',{onClick:near},'Use my pin')),
-oi===di?h('div',{className:'mu',style:{marginTop:6}},'Choose a different destination to see the fare and travel time.'):h('div',{style:{marginTop:8,display:'grid',gap:4}},h('div',{className:'row'},h(B,{c:'pr'},'Fare ₱'+fr.reg),h(B,{c:'ok'},'Student/Senior/PWD ₱'+fr.dis),h('span',{className:'mu'},fr.km.toFixed(1)+' km')),
-h('div',null,'Wait for next unit: ',h('b',null,best?fm(best.e.adj):'unavailable'),best&&h('span',{className:'mu'},' ('+best.v.unit+(best.e.f>1?', slowed by traffic':'')+')')),
-h('div',null,'Ride time: ',h('b',null,fm(ride)),h('span',{className:'mu'},w&&f>1?` — due to ${w.toLowerCase()} traffic congestion between ${o.n} and ${d.n} (+${fm(ride-base)}; ${fm(base)} without traffic)`:w?' — light traffic, no delay':' — no traffic report on this stretch')),
-best&&h('div',{style:{fontWeight:700,color:'#1d4ed8'}},'Estimated total: '+fm(best.e.adj+ride)),h('div',{className:'mu'},'Simulated fare and times; not official or live predictions.')))}
+      const traffic = getRouteTrafficFactor(state, route.id);
 
-function CommNote(){const s=useS();const n=s.demand.reduce((a,d)=>a+Math.min(10,Math.round(d.count/4)),0);return h('div',{className:'mu',style:{margin:'6px 0'}},h('b',{style:{color:'#1d4ed8'}},'Commuters on the app: '+(n+s.watch.length)),` (simulated, anonymous): ${n} waiting near demand hotspots, ${s.watch.length} with an active approaching alert. Blue dots are commuters; ringed dots have an alert set.`)}
+      return h(
+        'div',
+        { key: route.id, style: { marginBottom: 6 } },
+        h(
+          'div',
+          { className: 'row' },
+          h('b', null, route.name),
+          traffic.lv &&
+            h(Badge, { c: getLevelColorClass(traffic.lv) }, `${traffic.lv} traffic`)
+        ),
+        h(
+          'div',
+          { className: 'mu' },
+          nextVehicleArrival
+            ? `Next unit ${nextVehicleArrival.v.unit} reaches ${targetStop.n} in ${formatMinutes(
+                nextVehicleArrival.e.adj
+              )}. ${
+                nextVehicleArrival.e.f > 1
+                  ? `Due to ${traffic.lv.toLowerCase()} traffic congestion, this adds ${formatMinutes(
+                      nextVehicleArrival.e.adj - nextVehicleArrival.e.base
+                    )} (${formatMinutes(nextVehicleArrival.e.base)} without traffic).`
+                  : 'No traffic delay reported.'
+              }`
+            : 'ETA unavailable: no vehicle with fresh location data.'
+        )
+      );
+    }),
+    h(
+      'div',
+      { className: 'mu' },
+      'Estimates use simulated traffic and vehicle data, not live predictions.'
+    )
+  );
+}
 
-function VCard({v,pk,sel,onSel}){const s=useS(),i=info(v),r=rt(s,v.routeId);return h('div',{className:'c '+(sel?'sel':''),onClick:()=>onSel(v.id)},h('div',{className:'row'},h('b',null,v.unit),h(B,{c:i.col},i.label),h(B,{c:i.seatCol},i.seat)),
-h('div',{className:'mu'},`${r?r.name:'Unassigned'} · ${v.avail==null?'Seats unknown':v.avail+' of '+v.total+' seats available'} (${v.seatSrc})`),h('div',{className:'mu'},`Last update ${ago(v.lastAt)} · Source: ${s.link&&!v.mute?'Simulated GPS':'Last known (no signal)'}`),pk&&h('div',{style:{fontWeight:600,color:'#1d4ed8'}},eta(s,v,pk)))}
+/**
+ * Route fare breakdown card
+ */
+function FareCard({ r: route }) {
+  const state = useStoreState();
+  const fareConfig = state.fare || DEFAULT_FARE_CONFIG;
+  const fullRouteFare = calculateFare(state, route, 0, 1);
 
-const dragX={onWheel:e=>{if(Math.abs(e.deltaY)>Math.abs(e.deltaX))e.currentTarget.scrollLeft+=e.deltaY},onMouseDown:e=>{const el=e.currentTarget;el._d={x:e.clientX,l:el.scrollLeft,m:false}},onMouseMove:e=>{const el=e.currentTarget,d=el._d;if(!d||e.buttons!==1)return;const dx=e.clientX-d.x;if(Math.abs(dx)>4)d.m=true;el.scrollLeft=d.l-dx},onMouseUp:e=>{const el=e.currentTarget,d=el._d;el._d=null;if(d&&d.m)el._blk=Date.now()},onMouseLeave:e=>{e.currentTarget._d=null},onClickCapture:e=>{const el=e.currentTarget;if(el._blk&&Date.now()-el._blk<250){e.stopPropagation();e.preventDefault()}}};
+  return h(
+    'div',
+    { className: 'c' },
+    h('h3', null, `Fare guide: ${route.name}`),
+    h(
+      'div',
+      { className: 'row' },
+      h(Badge, { c: 'pr' }, `Full route ₱${fullRouteFare.reg}`),
+      h(Badge, { c: 'ok' }, `Student/Senior/PWD ₱${fullRouteFare.dis}`),
+      h('span', { className: 'mu' }, `${fullRouteFare.km.toFixed(1)} km`)
+    ),
+    route.pick.slice(1).map((stop, index) => {
+      const segmentFare = calculateFare(state, route, route.pick[0].p, stop.p);
+      return h(
+        'div',
+        { key: index, className: 'row mu' },
+        h(
+          'span',
+          { style: { flex: 1 } },
+          `${route.pick[0].n} → ${stop.n} (${segmentFare.km.toFixed(1)} km)`
+        ),
+        h('b', null, `₱${segmentFare.reg} / ₱${segmentFare.dis}`)
+      );
+    }),
+    h(
+      'div',
+      { className: 'mu' },
+      `Sample fares: ₱${fareConfig.base} for the first ${fareConfig.km} km + ₱${fareConfig.per}/km, ${fareConfig.disc}% discount. Not official rates.`
+    )
+  );
+}
 
-function LayersBtn({L,setL,items}){const [o,setO]=useState(false);return h('div',{style:{position:'absolute',top:10,right:10,zIndex:7}},h('button',{'aria-label':'Map layers','aria-expanded':o,onClick:()=>setO(!o),style:{borderRadius:12,padding:'8px 12px',boxShadow:'0 4px 12px rgba(15,27,51,.22)',border:0,fontWeight:700,display:'block',marginLeft:'auto'}},'\u29c9 Layers'),o&&h('div',{className:'c',style:{marginTop:6,width:220,boxShadow:'0 8px 24px rgba(15,27,51,.24)'}},items.map(([k,l])=>h('label',{key:k,className:'row'},h('input',{type:'checkbox',checked:L[k],onChange:e=>setL({...L,[k]:e.target.checked})}),l)),h(Legend)))}
+/**
+ * Interactive fare settings configuration editor for cooperatives
+ */
+function FareSettings() {
+  const state = useStoreState();
+  const currentFare = state.fare || DEFAULT_FARE_CONFIG;
 
-function MapSheet({mapFn,top,children}){const [sn,setSn]=useState(.42),[dg,setDg]=useState(false),[vb,setVb]=useState([0,0,100,70]),bx=React.useRef(null),dr=React.useRef(null),mr=React.useRef(null);
-React.useEffect(()=>{const el=mr.current;if(!el||typeof ResizeObserver==='undefined')return;const f=()=>{const W=el.clientWidth,H=el.clientHeight;if(!W||!H)return;const q=W/H,w=q>=100/70?70*q:100,hh=q>=100/70?70:100/q;setVb(v=>Math.abs(v[2]-w)<.5&&Math.abs(v[3]-hh)<.5?v:[50-w/2,35-hh/2,w,hh])};f();const ro=new ResizeObserver(f);ro.observe(el);return()=>ro.disconnect()});
-return h('div',{ref:bx,className:'am'},h('div',{ref:mr,className:'amap'},mapFn(vb)),top&&h('div',{className:'atop'},top),h('div',{className:'sheet',style:{height:(sn*100)+'%',transition:dg?'none':'height .25s'}},h('div',{className:'grab',role:'slider',tabIndex:0,'aria-label':'Drag to resize panel','aria-valuenow':Math.round(sn*100),onKeyDown:e=>{if(e.key==='ArrowUp')setSn(Math.min(.8,sn+.2));if(e.key==='ArrowDown')setSn(Math.max(.14,sn-.2))},onPointerDown:e=>{e.currentTarget.setPointerCapture(e.pointerId);dr.current={y:e.clientY,f:sn,m:false};setDg(true)},onPointerMove:e=>{const b=dr.current;if(!b)return;if(Math.abs(b.y-e.clientY)>4)b.m=true;setSn(Math.max(.12,Math.min(.85,b.f+(b.y-e.clientY)/bx.current.clientHeight)))},onPointerUp:()=>{const b=dr.current;dr.current=null;setDg(false);if(!b)return;const S=[.14,.42,.8];if(!b.m){setSn(S[(S.findIndex(x=>Math.abs(x-b.f)<.05)+1)%3]);return}setSn(S.reduce((a,x)=>Math.abs(x-sn)<Math.abs(a-sn)?x:a,S[0]))}},h('i')),h('div',{className:'sbody'},...React.Children.toArray(children))))}
+  const updateSetting = (key, value) => {
+    updateStoreState((prev) => ({
+      ...prev,
+      fare: {
+        ...(prev.fare || DEFAULT_FARE_CONFIG),
+        [key]: Math.max(0, Number.isFinite(+value) ? +value : 0),
+      },
+    }));
+  };
+
+  const fields = [
+    ['base', 'Base ₱'],
+    ['km', 'Base km'],
+    ['per', '₱ per km'],
+    ['disc', 'Discount %'],
+  ];
+
+  return h(
+    'div',
+    { className: 'c' },
+    h('h3', null, 'Fare settings (sample)'),
+    h(
+      'div',
+      { className: 'row' },
+      fields.map(([key, label]) =>
+        h(
+          'label',
+          { key, className: 'mu' },
+          `${label} `,
+          h('input', {
+            type: 'number',
+            min: 0,
+            step: 'any',
+            style: { width: 64 },
+            value: currentFare[key],
+            onChange: (e) => updateSetting(key, e.target.value),
+            'aria-label': label,
+          })
+        )
+      )
+    ),
+    state.routes
+      .filter((route) => route.active)
+      .map((route) => {
+        const fullFare = calculateFare(state, route, 0, 1);
+        return h(
+          'div',
+          { key: route.id, className: 'mu' },
+          `${route.name}: ₱${fullFare.reg} regular, ₱${fullFare.dis} discounted (${fullFare.km.toFixed(1)} km)`
+        );
+      }),
+    h(
+      'div',
+      { className: 'mu' },
+      'Fares update in the Commuter app. Demo values, not LTFRB-approved rates.'
+    )
+  );
+}
+
+/**
+ * Trip Planner: origin/destination picker, ETA, and fare estimate
+ */
+function TripPlan({
+  r: route,
+  pi: originIndex,
+  setPi: setOriginIndex,
+  to: destIndex,
+  setTo: setDestIndex,
+}) {
+  const state = useStoreState();
+  const stopCount = route.pick.length;
+  const safeOriginIdx = Math.min(originIndex, stopCount - 1);
+  const safeDestIdx = Math.min(destIndex, stopCount - 1);
+  const originStop = route.pick[safeOriginIdx];
+  const destStop = route.pick[safeDestIdx];
+
+  // Resolve traffic delay along the trip stretch
+  const getTrafficProgress = (t) =>
+    t.p ??
+    ({
+      'Airport Road': 0.55,
+      'Molo Crossing': 0.5,
+      'Diversion Road': 0.3,
+    }[t.road] ?? 0.5);
+
+  const minProgress = Math.min(originStop.p, destStop.p);
+  const maxProgress = Math.max(originStop.p, destStop.p);
+
+  const stretchTrafficLevels = state.traffic
+    .filter(
+      (t) =>
+        t.routeId === route.id &&
+        t.level !== 'Unknown' &&
+        getTrafficProgress(t) >= minProgress - 0.05 &&
+        getTrafficProgress(t) <= maxProgress + 0.05
+    )
+    .map((t) => t.level);
+
+  const worstLevel = stretchTrafficLevels.includes('Heavy')
+    ? 'Heavy'
+    : stretchTrafficLevels.includes('Moderate')
+    ? 'Moderate'
+    : stretchTrafficLevels.length
+    ? 'Light'
+    : null;
+
+  const trafficMultiplier = worstLevel ? TRAFFIC_FACTORS[worstLevel] : 1.0;
+
+  // Compute fares and ride times
+  const fare = calculateFare(state, route, originStop.p, destStop.p);
+  const baseRideMinutes = fare.km * 2.4;
+  const trafficRideMinutes = baseRideMinutes * trafficMultiplier;
+
+  // Best next vehicle approaching the origin stop
+  const bestVehicle = state.vehicles
+    .filter((v) => v.routeId === route.id)
+    .map((v) => ({ v, e: calculateEta(state, v, originStop) }))
+    .filter((item) => item.e)
+    .sort((a, b) => a.e.adj - b.e.adj)[0];
+
+  // Nearest stop finder using user's location pin
+  const userPin = state.cloc || [22, 40];
+  const selectNearestStop = () => {
+    let nearestIndex = 0;
+    let shortestDistance = Infinity;
+
+    route.pick.forEach((stop, idx) => {
+      const coords = getPositionOnRoute(route, stop.p);
+      if (!coords) return;
+      const dist = Math.hypot(coords[0] - userPin[0], coords[1] - userPin[1]);
+      if (dist < shortestDistance) {
+        shortestDistance = dist;
+        nearestIndex = idx;
+      }
+    });
+    setOriginIndex(nearestIndex);
+  };
+
+  return h(
+    'div',
+    { className: 'c' },
+    h('h3', null, 'Plan your trip'),
+    h(
+      'div',
+      { className: 'row' },
+      h(
+        'select',
+        {
+          value: safeOriginIdx,
+          onChange: (e) => setOriginIndex(+e.target.value),
+          'aria-label': 'From',
+        },
+        route.pick.map((stop, idx) =>
+          h('option', { key: idx, value: idx }, `From: ${stop.n}`)
+        )
+      ),
+      h(
+        'select',
+        {
+          value: safeDestIdx,
+          onChange: (e) => setDestIndex(+e.target.value),
+          'aria-label': 'To',
+        },
+        route.pick.map((stop, idx) =>
+          h('option', { key: idx, value: idx }, `To: ${stop.n}`)
+        )
+      ),
+      h('button', { onClick: selectNearestStop }, 'Use my pin')
+    ),
+
+    safeOriginIdx === safeDestIdx
+      ? h(
+          'div',
+          { className: 'mu', style: { marginTop: 6 } },
+          'Choose a different destination to see the fare and travel time.'
+        )
+      : h(
+          'div',
+          { style: { marginTop: 8, display: 'grid', gap: 4 } },
+          h(
+            'div',
+            { className: 'row' },
+            h(Badge, { c: 'pr' }, `Fare ₱${fare.reg}`),
+            h(Badge, { c: 'ok' }, `Student/Senior/PWD ₱${fare.dis}`),
+            h('span', { className: 'mu' }, `${fare.km.toFixed(1)} km`)
+          ),
+          h(
+            'div',
+            null,
+            'Wait for next unit: ',
+            h('b', null, bestVehicle ? formatMinutes(bestVehicle.e.adj) : 'unavailable'),
+            bestVehicle &&
+              h(
+                'span',
+                { className: 'mu' },
+                ` (${bestVehicle.v.unit}${bestVehicle.e.f > 1 ? ', slowed by traffic' : ''})`
+              )
+          ),
+          h(
+            'div',
+            null,
+            'Ride time: ',
+            h('b', null, formatMinutes(trafficRideMinutes)),
+            h(
+              'span',
+              { className: 'mu' },
+              worstLevel && trafficMultiplier > 1
+                ? ` — due to ${worstLevel.toLowerCase()} traffic congestion between ${originStop.n} and ${destStop.n} (+${formatMinutes(
+                    trafficRideMinutes - baseRideMinutes
+                  )}; ${formatMinutes(baseRideMinutes)} without traffic)`
+                : worstLevel
+                ? ' — light traffic, no delay'
+                : ' — no traffic report on this stretch'
+            )
+          ),
+          bestVehicle &&
+            h(
+              'div',
+              { style: { fontWeight: 700, color: '#1d4ed8' } },
+              `Estimated total: ${formatMinutes(bestVehicle.e.adj + trafficRideMinutes)}`
+            ),
+          h(
+            'div',
+            { className: 'mu' },
+            'Simulated fare and times; not official or live predictions.'
+          )
+        )
+  );
+}
+
+/**
+ * Commuter community counter note
+ */
+function CommNote() {
+  const state = useStoreState();
+  const waitingCommuters = state.demand.reduce(
+    (acc, d) => acc + Math.min(10, Math.round(d.count / 4)),
+    0
+  );
+  const totalCommuters = waitingCommuters + state.watch.length;
+
+  return h(
+    'div',
+    { className: 'mu', style: { margin: '6px 0' } },
+    h(
+      'b',
+      { style: { color: '#1d4ed8' } },
+      `Commuters on the app: ${totalCommuters}`
+    ),
+    ` (simulated, anonymous): ${waitingCommuters} waiting near demand hotspots, ${state.watch.length} with an active approaching alert. Blue dots are commuters; ringed dots have an alert set.`
+  );
+}
+
+/**
+ * Vehicle Status Card
+ */
+function VCard({ v: vehicle, pk: pickupPoint, sel: isSelected, onSel: onSelect }) {
+  const state = useStoreState();
+  const info = getVehicleStatusInfo(vehicle);
+  const route = getRouteById(state, vehicle.routeId);
+
+  return h(
+    'div',
+    {
+      className: `c ${isSelected ? 'sel' : ''}`,
+      onClick: () => onSelect && onSelect(vehicle.id),
+    },
+    h(
+      'div',
+      { className: 'row' },
+      h('b', null, vehicle.unit),
+      h(Badge, { c: info.col }, info.label),
+      h(Badge, { c: info.seatCol }, info.seat)
+    ),
+    h(
+      'div',
+      { className: 'mu' },
+      `${route ? route.name : 'Unassigned'} · ${
+        vehicle.avail == null
+          ? 'Seats unknown'
+          : `${vehicle.avail} of ${vehicle.total} seats available`
+      } (${vehicle.seatSrc})`
+    ),
+    h(
+      'div',
+      { className: 'mu' },
+      `Last update ${formatTimeAgo(vehicle.lastAt)} · Source: ${
+        state.link && !vehicle.mute ? 'Simulated GPS' : 'Last known (no signal)'
+      }`
+    ),
+    pickupPoint &&
+      h(
+        'div',
+        { style: { fontWeight: 600, color: '#1d4ed8' } },
+        getEtaDescription(state, vehicle, pickupPoint)
+      )
+  );
+}
+
+/**
+ * Smooth drag-to-scroll gesture bindings for horizontal chip bars
+ */
+const dragScroll = {
+  onWheel: (e) => {
+    if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+      e.currentTarget.scrollLeft += e.deltaY;
+    }
+  },
+  onMouseDown: (e) => {
+    const el = e.currentTarget;
+    el._drag = { x: e.clientX, left: el.scrollLeft, moved: false };
+  },
+  onMouseMove: (e) => {
+    const el = e.currentTarget;
+    const d = el._drag;
+    if (!d || e.buttons !== 1) return;
+    const dx = e.clientX - d.x;
+    if (Math.abs(dx) > 4) d.moved = true;
+    el.scrollLeft = d.left - dx;
+  },
+  onMouseUp: (e) => {
+    const el = e.currentTarget;
+    const d = el._drag;
+    el._drag = null;
+    if (d && d.moved) el._blockClickUntil = Date.now();
+  },
+  onMouseLeave: (e) => {
+    e.currentTarget._drag = null;
+  },
+  onClickCapture: (e) => {
+    const el = e.currentTarget;
+    if (el._blockClickUntil && Date.now() - el._blockClickUntil < 250) {
+      e.stopPropagation();
+      e.preventDefault();
+    }
+  },
+};
+const dragX = dragScroll; // Backward-compatible alias
+
+/**
+ * Floating Map Layers Toggle Button & Dropdown
+ */
+function LayersBtn({ L: layers, setL: setLayers, items }) {
+  const [isOpen, setIsOpen] = useState(false);
+
+  return h(
+    'div',
+    { style: { position: 'absolute', top: 10, right: 10, zIndex: 7 } },
+    h(
+      'button',
+      {
+        'aria-label': 'Map layers',
+        'aria-expanded': isOpen,
+        onClick: () => setIsOpen(!isOpen),
+        style: {
+          borderRadius: 12,
+          padding: '8px 12px',
+          boxShadow: '0 4px 12px rgba(15,27,51,.22)',
+          border: 0,
+          fontWeight: 700,
+          display: 'block',
+          marginLeft: 'auto',
+        },
+      },
+      '⧉ Layers'
+    ),
+    isOpen &&
+      h(
+        'div',
+        {
+          className: 'c',
+          style: {
+            marginTop: 6,
+            width: 220,
+            boxShadow: '0 8px 24px rgba(15,27,51,.24)',
+          },
+        },
+        items.map(([key, label]) =>
+          h(
+            'label',
+            { key, className: 'row' },
+            h('input', {
+              type: 'checkbox',
+              checked: layers[key],
+              onChange: (e) =>
+                setLayers({ ...layers, [key]: e.target.checked }),
+            }),
+            label
+          )
+        ),
+        h(Legend)
+      )
+  );
+}
+
+/**
+ * Draggable Bottom Sheet Layout with Map Background
+ */
+function MapSheet({ mapFn, top, children }) {
+  const [snapRatio, setSnapRatio] = useState(0.42);
+  const [isDragging, setIsDragging] = useState(false);
+  const [viewBox, setViewBox] = useState([0, 0, 100, 70]);
+
+  const containerRef = useRef(null);
+  const dragContextRef = useRef(null);
+  const mapElementRef = useRef(null);
+
+  // ResizeObserver to automatically adjust SVG viewBox aspect ratio
+  useEffect(() => {
+    const mapElement = mapElementRef.current;
+    if (!mapElement || typeof ResizeObserver === 'undefined') return;
+
+    const updateViewBox = () => {
+      const width = mapElement.clientWidth;
+      const height = mapElement.clientHeight;
+      if (!width || !height) return;
+
+      const aspect = width / height;
+      const targetW = aspect >= 100 / 70 ? 70 * aspect : 100;
+      const targetH = aspect >= 100 / 70 ? 70 : 100 / aspect;
+
+      setViewBox((current) => {
+        if (
+          Math.abs(current[2] - targetW) < 0.5 &&
+          Math.abs(current[3] - targetH) < 0.5
+        ) {
+          return current;
+        }
+        return [50 - targetW / 2, 35 - targetH / 2, targetW, targetH];
+      });
+    };
+
+    updateViewBox();
+    const observer = new ResizeObserver(updateViewBox);
+    observer.observe(mapElement);
+    return () => observer.disconnect();
+  }, []);
+
+  // Snap position candidates (collapsed: 14%, default: 42%, expanded: 80%)
+  const SNAP_POINTS = [0.14, 0.42, 0.8];
+
+  return h(
+    'div',
+    { ref: containerRef, className: 'am' },
+    h('div', { ref: mapElementRef, className: 'amap' }, mapFn(viewBox)),
+    top && h('div', { className: 'atop' }, top),
+    h(
+      'div',
+      {
+        className: 'sheet',
+        style: {
+          height: `${snapRatio * 100}%`,
+          transition: isDragging ? 'none' : 'height .25s ease',
+        },
+      },
+      // Draggable grab bar handle
+      h(
+        'div',
+        {
+          className: 'grab',
+          role: 'slider',
+          tabIndex: 0,
+          'aria-label': 'Drag to resize panel',
+          'aria-valuenow': Math.round(snapRatio * 100),
+          onKeyDown: (e) => {
+            if (e.key === 'ArrowUp') setSnapRatio(Math.min(0.8, snapRatio + 0.2));
+            if (e.key === 'ArrowDown') setSnapRatio(Math.max(0.14, snapRatio - 0.2));
+          },
+          onPointerDown: (e) => {
+            e.currentTarget.setPointerCapture(e.pointerId);
+            dragContextRef.current = {
+              startY: e.clientY,
+              startRatio: snapRatio,
+              moved: false,
+            };
+            setIsDragging(true);
+          },
+          onPointerMove: (e) => {
+            const drag = dragContextRef.current;
+            if (!drag) return;
+            if (Math.abs(drag.startY - e.clientY) > 4) drag.moved = true;
+
+            const deltaY = drag.startY - e.clientY;
+            const containerHeight = containerRef.current.clientHeight;
+            const newRatio = drag.startRatio + deltaY / containerHeight;
+            setSnapRatio(Math.max(0.12, Math.min(0.85, newRatio)));
+          },
+          onPointerUp: () => {
+            const drag = dragContextRef.current;
+            dragContextRef.current = null;
+            setIsDragging(false);
+            if (!drag) return;
+
+            // If tapped without dragging, cycle to next snap point
+            if (!drag.moved) {
+              const currentIndex = SNAP_POINTS.findIndex(
+                (p) => Math.abs(p - drag.startRatio) < 0.05
+              );
+              setSnapRatio(SNAP_POINTS[(currentIndex + 1) % SNAP_POINTS.length]);
+              return;
+            }
+
+            // Snap to closest point
+            const nearestSnap = SNAP_POINTS.reduce((closest, point) =>
+              Math.abs(point - snapRatio) < Math.abs(closest - snapRatio)
+                ? point
+                : closest
+            );
+            setSnapRatio(nearestSnap);
+          },
+        },
+        h('i')
+      ),
+      // Scrollable sheet content body
+      h('div', { className: 'sbody' }, ...React.Children.toArray(children))
+    )
+  );
+}
+
+window.WaitLessShared = {
+  Badge,
+  B,
+  getLevelColorClass,
+  lvC,
+  EtaCard,
+  FareCard,
+  FareSettings,
+  TripPlan,
+  CommNote,
+  VCard,
+  dragScroll,
+  dragX,
+  LayersBtn,
+  MapSheet,
+};

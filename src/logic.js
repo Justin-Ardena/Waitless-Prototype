@@ -1,27 +1,278 @@
-// Route geometry, vehicle status, ETA with traffic, fares
+/**
+ * WaitLess Prototype - Core Domain & Calculation Logic
+ *
+ * Provides:
+ * - Route geometry, polyline length, and spatial interpolation
+ * - Vehicle operational status and seat availability diagnostics
+ * - Real-time ETA estimations with simulated traffic delays
+ * - Fare calculations (regular and statutory discounted rates)
+ */
 
-const rt=(s,id)=>s.routes.find(r=>r.id===id);
+/**
+ * Finds a route by ID within state.
+ * @param {Object} state - Application state
+ * @param {string} routeId - Unique route identifier
+ * @returns {Object|undefined} Route object
+ */
+function getRouteById(state, routeId) {
+  return state.routes.find((route) => route.id === routeId);
+}
+const rt = getRouteById; // Backward-compatible alias
 
-const plen=r=>r.pts.slice(1).reduce((a,q,i)=>a+Math.hypot(q[0]-r.pts[i][0],q[1]-r.pts[i][1]),0);
+/**
+ * Calculates total polyline length across route coordinate points.
+ * @param {Object} route - Route definition with `pts` [[x, y], ...]
+ * @returns {number} Geometric length
+ */
+function calculateRouteLength(route) {
+  if (!route || !Array.isArray(route.pts) || route.pts.length < 2) return 0;
+  return route.pts.slice(1).reduce((total, currentPoint, index) => {
+    const prevPoint = route.pts[index];
+    return total + Math.hypot(currentPoint[0] - prevPoint[0], currentPoint[1] - prevPoint[1]);
+  }, 0);
+}
+const plen = calculateRouteLength; // Backward-compatible alias
 
-function pos(r,p){if(!r)return null;const L=plen(r);let d=Math.max(0,Math.min(1,p))*L;for(let i=1;i<r.pts.length;i++){const a=r.pts[i-1],b=r.pts[i],l=Math.hypot(b[0]-a[0],b[1]-a[1]);if(d<=l||i==r.pts.length-1){const k=l?Math.min(1,d/l):0;return[a[0]+(b[0]-a[0])*k,a[1]+(b[1]-a[1])*k]}d-=l}}
+/**
+ * Calculates [x, y] coordinates at normalized progress `p` (0.0 to 1.0) along a route.
+ * @param {Object} route - Route object containing `pts`
+ * @param {number} progress - Normalized progression between 0 and 1
+ * @returns {[number, number]|null} [x, y] coordinate tuple
+ */
+function getPositionOnRoute(route, progress) {
+  if (!route || !Array.isArray(route.pts) || route.pts.length < 2) return null;
+  const totalLength = calculateRouteLength(route);
+  if (totalLength === 0) return route.pts[0];
 
-const SPEED=6;
+  const clampedProgress = Math.max(0, Math.min(1, progress));
+  let targetDistance = clampedProgress * totalLength;
 
-function info(v){const stale=now()-v.lastAt>8000,seat=v.avail==null?'Unknown':v.avail===0?'Full':v.avail<=8?'Limited Seats':'Seats Available';
-const label=stale?'Stale Data':v.status;const col=stale?'gr':v.status==='Out of Service'?'er':v.status==='At Terminal'?'pr':'ok';
-return{stale,seat,label,col,seatCol:seat==='Unknown'?'gr':seat==='Full'?'er':seat==='Limited Seats'?'wa':'ok'}}
+  for (let i = 1; i < route.pts.length; i++) {
+    const startPt = route.pts[i - 1];
+    const endPt = route.pts[i];
+    const segmentLength = Math.hypot(endPt[0] - startPt[0], endPt[1] - startPt[1]);
 
-const TF={Heavy:2,Moderate:1.4,Light:1};
+    if (targetDistance <= segmentLength || i === route.pts.length - 1) {
+      const segmentRatio = segmentLength > 0 ? Math.min(1, targetDistance / segmentLength) : 0;
+      return [
+        startPt[0] + (endPt[0] - startPt[0]) * segmentRatio,
+        startPt[1] + (endPt[1] - startPt[1]) * segmentRatio,
+      ];
+    }
+    targetDistance -= segmentLength;
+  }
+  return route.pts[0];
+}
+const pos = getPositionOnRoute; // Backward-compatible alias
 
-function tfac(s,rid){const L=s.traffic.filter(t=>t.routeId===rid).map(t=>t.level);const lv=L.includes('Heavy')?'Heavy':L.includes('Moderate')?'Moderate':L.includes('Light')?'Light':null;return{lv,f:lv?TF[lv]:1}}
+// Reference travel speed constant for simulated transit
+const SIMULATED_SPEED = 6;
+const SPEED = SIMULATED_SPEED; // Backward-compatible alias
 
-function etaInfo(s,v,pk){const r=rt(s,v.routeId);if(!r||!pk||info(v).stale||v.status==='Out of Service'||v.p==null)return null;const m=Math.abs(pk.p-v.p)*plen(r)/SPEED/6,t=tfac(s,r.id);return{base:m,adj:m*t.f,lv:t.lv,f:t.f}}
+/**
+ * Evaluates vehicle state freshness, seat availability, and status styling.
+ * @param {Object} vehicle - Vehicle object
+ * @returns {Object} Diagnostics: { stale, seat, label, col, seatCol }
+ */
+function getVehicleStatusInfo(vehicle) {
+  const isStale = getCurrentTimestamp() - vehicle.lastAt > 8000;
+  const seatStatus =
+    vehicle.avail === null
+      ? 'Unknown'
+      : vehicle.avail === 0
+      ? 'Full'
+      : vehicle.avail <= 8
+      ? 'Limited Seats'
+      : 'Seats Available';
 
-const fm=m=>m<1?'<1 min':Math.round(m)+' min';
+  const label = isStale ? 'Stale Data' : vehicle.status;
 
-function eta(s,v,pk){const e=etaInfo(s,v,pk);if(!e)return'ETA unavailable';return'Simulated ETA: '+fm(e.adj)+(e.lv&&e.f>1?` — due to ${e.lv.toLowerCase()} traffic congestion (+${fm(e.adj-e.base)}; ${fm(e.base)} without traffic)`:e.lv?' — light traffic, no delay':' — no traffic report')}
+  // Status badge colors: ok (green), pr (blue), er (red), gr (gray)
+  const col = isStale
+    ? 'gr'
+    : vehicle.status === 'Out of Service'
+    ? 'er'
+    : vehicle.status === 'At Terminal'
+    ? 'pr'
+    : 'ok';
 
-const FD={base:15,km:4,per:2.5,disc:20};
+  // Seat status badge colors: ok (green), wa (yellow/amber), er (red), gr (gray)
+  const seatCol =
+    seatStatus === 'Unknown'
+      ? 'gr'
+      : seatStatus === 'Full'
+      ? 'er'
+      : seatStatus === 'Limited Seats'
+      ? 'wa'
+      : 'ok';
 
-const fareFor=(s,r,a,b)=>{const F=s.fare||FD,km=Math.abs(b-a)*plen(r)*0.1,f=F.base+Math.max(0,km-F.km)*F.per;return{km,reg:Math.round(f),dis:Math.round(f*(1-F.disc/100))}};
+  return {
+    stale: isStale,
+    seat: seatStatus,
+    label,
+    col,
+    seatCol,
+  };
+}
+const info = getVehicleStatusInfo; // Backward-compatible alias
+
+// Delay multiplier factors for traffic congestion
+const TRAFFIC_FACTORS = {
+  Heavy: 2.0,
+  Moderate: 1.4,
+  Light: 1.0,
+};
+const TF = TRAFFIC_FACTORS; // Backward-compatible alias
+
+/**
+ * Determines the traffic delay factor along a designated route.
+ * @param {Object} state - Application state
+ * @param {string} routeId - Target route ID
+ * @returns {{ lv: string|null, f: number }} Severity level and delay multiplier factor
+ */
+function getRouteTrafficFactor(state, routeId) {
+  const trafficLevels = state.traffic
+    .filter((t) => t.routeId === routeId)
+    .map((t) => t.level);
+
+  let worstLevel = null;
+  if (trafficLevels.includes('Heavy')) worstLevel = 'Heavy';
+  else if (trafficLevels.includes('Moderate')) worstLevel = 'Moderate';
+  else if (trafficLevels.includes('Light')) worstLevel = 'Light';
+
+  return {
+    lv: worstLevel,
+    f: worstLevel ? TRAFFIC_FACTORS[worstLevel] : 1.0,
+  };
+}
+const tfac = getRouteTrafficFactor; // Backward-compatible alias
+
+/**
+ * Calculates raw and traffic-adjusted ETA between vehicle and designated pickup stop.
+ * @param {Object} state - Application state
+ * @param {Object} vehicle - Vehicle object
+ * @param {Object} pickupPoint - Target pickup stop { n, p }
+ * @returns {Object|null} ETA metrics { base, adj, lv, f } or null if unavailable
+ */
+function calculateEta(state, vehicle, pickupPoint) {
+  const route = getRouteById(state, vehicle.routeId);
+  const vehicleInfo = getVehicleStatusInfo(vehicle);
+
+  if (
+    !route ||
+    !pickupPoint ||
+    vehicleInfo.stale ||
+    vehicle.status === 'Out of Service' ||
+    vehicle.p == null
+  ) {
+    return null;
+  }
+
+  // Calculate base minutes based on route distance and simulated speed
+  const baseMinutes =
+    (Math.abs(pickupPoint.p - vehicle.p) * calculateRouteLength(route)) /
+    SIMULATED_SPEED /
+    6;
+
+  const trafficInfo = getRouteTrafficFactor(state, route.id);
+  const adjustedMinutes = baseMinutes * trafficInfo.f;
+
+  return {
+    base: baseMinutes,
+    adj: adjustedMinutes,
+    lv: trafficInfo.lv,
+    f: trafficInfo.f,
+  };
+}
+const etaInfo = calculateEta; // Backward-compatible alias
+
+/**
+ * Formats minutes into human-readable text (e.g. '<1 min', '8 min').
+ * @param {number} minutes
+ * @returns {string}
+ */
+const formatMinutes = (minutes) => {
+  if (minutes < 1) return '<1 min';
+  return `${Math.round(minutes)} min`;
+};
+const fm = formatMinutes; // Backward-compatible alias
+
+/**
+ * Generates an informative ETA explanation string including traffic impact.
+ * @param {Object} state - Application state
+ * @param {Object} vehicle - Vehicle object
+ * @param {Object} pickupPoint - Target pickup stop
+ * @returns {string} Detailed ETA message
+ */
+function getEtaDescription(state, vehicle, pickupPoint) {
+  const result = calculateEta(state, vehicle, pickupPoint);
+  if (!result) return 'ETA unavailable';
+
+  let explanation = '';
+  if (result.lv && result.f > 1) {
+    const delay = result.adj - result.base;
+    explanation = ` — due to ${result.lv.toLowerCase()} traffic congestion (+${formatMinutes(delay)}; ${formatMinutes(result.base)} without traffic)`;
+  } else if (result.lv) {
+    explanation = ' — light traffic, no delay';
+  } else {
+    explanation = ' — no traffic report';
+  }
+
+  return `Simulated ETA: ${formatMinutes(result.adj)}${explanation}`;
+}
+const eta = getEtaDescription; // Backward-compatible alias
+
+// Default fare parameters (Philippine Modernized Jeepney base standard)
+const DEFAULT_FARE_CONFIG = {
+  base: 15, // Base fare in PHP
+  km: 4, // Distance covered by base fare in km
+  per: 2.5, // Rate per succeeding kilometer in PHP
+  disc: 20, // Statutory discount percentage (Student, Senior, PWD)
+};
+const FD = DEFAULT_FARE_CONFIG; // Backward-compatible alias
+
+/**
+ * Calculates regular and discounted passenger fares between two points along a route.
+ * @param {Object} state - Application state
+ * @param {Object} route - Route definition
+ * @param {number} startProgress - Origin progress (0 to 1)
+ * @param {number} endProgress - Destination progress (0 to 1)
+ * @returns {{ km: number, reg: number, dis: number }} Distance and calculated fares in PHP
+ */
+function calculateFare(state, route, startProgress, endProgress) {
+  const config = state.fare || DEFAULT_FARE_CONFIG;
+  const distanceKm = Math.abs(endProgress - startProgress) * calculateRouteLength(route) * 0.1;
+  const rawFare = config.base + Math.max(0, distanceKm - config.km) * config.per;
+
+  return {
+    km: distanceKm,
+    reg: Math.round(rawFare),
+    dis: Math.round(rawFare * (1 - config.disc / 100)),
+  };
+}
+const fareFor = calculateFare; // Backward-compatible alias
+
+window.WaitLessLogic = {
+  getRouteById,
+  rt,
+  calculateRouteLength,
+  plen,
+  getPositionOnRoute,
+  pos,
+  getVehicleStatusInfo,
+  info,
+  getRouteTrafficFactor,
+  tfac,
+  calculateEta,
+  etaInfo,
+  formatMinutes,
+  fm,
+  getEtaDescription,
+  eta,
+  calculateFare,
+  fareFor,
+  DEFAULT_FARE_CONFIG,
+  FD,
+  TRAFFIC_FACTORS,
+  TF,
+};
