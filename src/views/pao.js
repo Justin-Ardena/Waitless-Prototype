@@ -58,11 +58,13 @@ function PAO() {
       trafficSeverityFilter === 'all' || t.level === trafficSeverityFilter
   );
 
+  // Show all On Route vehicles regardless of staleness — stale check was
+  // hiding every vehicle on initial load because localStorage timestamps are
+  // older than 8 s. The vehicle color still goes gray when stale.
   const operatingVehicles = state.vehicles.filter(
     (v) =>
       (!selectedRoute || v.routeId === selectedRoute.id) &&
-      v.status === 'On Route' &&
-      !getVehicleStatusInfo(v).stale
+      v.status === 'On Route'
   );
 
   const topDemandSpot = filteredDemand[0];

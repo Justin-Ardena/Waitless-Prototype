@@ -12,14 +12,15 @@
 
 // District landmarks on schematic map
 const DISTRICT_LABELS = [
-  ['Jaro Plaza', 70, 10],
-  ['Mandurriao Central', 30, 27],
+  ['Jaro', 70, 10],
+  ['Mandurriao', 30, 27],
   ['City Proper', 84, 12],
-  ['SM City Complex', 86, 52],
-  ['Molo Crossing', 52, 52],
+  ['SM City', 86, 52],
+  ['Molo', 52, 52],
   ['Hibao-an', 86, 31],
   ['Calumpang', 12, 60],
-  ['Airport Corridor', 50, 31],
+  ['Airport Rd', 50, 31],
+  ['Tagbak', 8, 55],
 ];
 
 /**
@@ -93,7 +94,7 @@ function MapView({
     h(
       'defs',
       null,
-      // Drop Shadow Filter for Tooltip & Markers
+      // Drop Shadow Filter for Tooltip Card only (not vehicle markers)
       h(
         'filter',
         { id: 'cardShadow', x: '-20%', y: '-20%', width: '140%', height: '140%' },
@@ -101,21 +102,13 @@ function MapView({
           dx: 0,
           dy: 2,
           stdDeviation: 2.5,
-          floodColor: '#0f172a',
-          floodOpacity: 0.15,
+          'flood-color': '#0f172a',
+          'flood-opacity': 0.15,
         })
       ),
-      h(
-        'filter',
-        { id: 'markerShadow', x: '-30%', y: '-30%', width: '160%', height: '160%' },
-        h('feDropShadow', {
-          dx: 0,
-          dy: 1,
-          stdDeviation: 1,
-          floodColor: '#0f172a',
-          floodOpacity: 0.25,
-        })
-      ),
+      // markerShadow intentionally removed — SVG feDropShadow causes element
+      // dropout on small viewBox coords in Chromium/WebKit. Crisp white strokes
+      // provide visual separation without rendering issues.
       // Radial Heatmap Gradients
       [
         ['High', '#ef4444'],
@@ -469,8 +462,7 @@ function MapView({
           d: `M${userLocation[0]} ${userLocation[1]} c-2.6-3.2-3.4-4.6-3.4-6.1a3.4 3.4 0 1 1 6.8 0c0 1.5-.8 2.9-3.4 6.1z`,
           fill: '#2563eb',
           stroke: '#ffffff',
-          strokeWidth: 0.6,
-          filter: 'url(#markerShadow)',
+          strokeWidth: 0.7,
         }),
         h('circle', {
           cx: userLocation[0],
@@ -542,7 +534,7 @@ function MapView({
               strokeWidth: 0.6,
               opacity: 0.8,
             }),
-          // Vehicle capsule body
+          // Vehicle capsule body (no SVG filter — causes rendering dropout on small viewBox)
           h('rect', {
             x: coords[0] - 2.6,
             y: coords[1] - 1.8,
@@ -551,8 +543,7 @@ function MapView({
             rx: 1.8,
             fill: fillColor,
             stroke: isSelected ? '#0f172a' : '#ffffff',
-            strokeWidth: isSelected ? 0.7 : 0.5,
-            filter: 'url(#markerShadow)',
+            strokeWidth: isSelected ? 0.8 : 0.6,
           }),
           // Unit ID digits
           h(

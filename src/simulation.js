@@ -21,7 +21,9 @@ function stepSimulation(currentState) {
   const updatedVehicles = currentState.vehicles.map((vehicle) => {
     const updated = { ...vehicle };
 
-    // When simulated LoRaWAN link is active and vehicle is unmuted, refresh timestamp
+    // When simulated LoRaWAN link is active and vehicle is unmuted, refresh
+    // the timestamp for ALL vehicles (not just On Route) so that vehicles
+    // loaded from localStorage don't stay permanently stale.
     if (currentState.link && !vehicle.mute) {
       updated.lastAt = timestamp;
 
